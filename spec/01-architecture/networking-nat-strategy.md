@@ -21,14 +21,23 @@
 
 ## 会话建立流程
 
+引入轻量级公网发现服务（Discovery Service），用于实现 6 位 Code 到具体连接地址的映射。
+
 ```mermaid
 sequenceDiagram
     participant C as Client
+    participant D as Discovery Service (Public)
     participant H as Host Runtime
-    C->>H: Join Request(roomId, token)
-    H-->>C: Join Accept + ICE candidates
-    C->>H: SDP Offer/Answer
-    C->>H: Connectivity Checks
+    
+    H->>D: 1. Register Host (6-char Code, Room Name, IP/Port)
+    C->>D: 2. Query Room Info (Code: "A9B2K8")
+    D-->>C: 3. Return Room Name & Host Endpoints
+    C->>C: 4. User confirms "Join Room XXX?"
+    
+    C->>H: 5. Join Request(Code, UUID)
+    H-->>C: 6. Join Accept + ICE candidates
+    C->>H: 7. SDP Offer/Answer
+    C->>H: 8. Connectivity Checks
     alt 直连成功
         C-->>H: P2P media path established
     else 直连失败

@@ -2,6 +2,13 @@
 
 本目录用于沉淀「PC/macOS 电竞开黑语音软件」的技术设计，目标是先完成可落地的 MVP，再逐步演进稳定性与公网可用性。
 
+## 🎯 核心入口：进度追踪
+
+所有的开发工作均依据以下交付清单进行核对与进度更新：
+👉 **[项目交付追踪表 (Project Tracker)](./06-delivery/project-tracker.md)** 👈
+
+---
+
 ## 文档结构
 
 - **00-overview/**: 产品目标与边界约束
@@ -18,7 +25,8 @@
   - [host-runtime-design.md](./04-host-runtime/host-runtime-design.md)
 - **05-security/**: 安全与权限模型
   - [security-model.md](./05-security/security-model.md)
-- **06-delivery/**: MVP 里程碑与交付计划
+- **06-delivery/**: 里程碑与进度追踪
+  - [project-tracker.md](./06-delivery/project-tracker.md) （唯一进度基准）
   - [roadmap-mvp.md](./06-delivery/roadmap-mvp.md)
 - **07-product-design/**: 产品详细设计与 UI 示意（包含 HTML Demo）
   - [detailed-prd.md](./07-product-design/detailed-prd.md)

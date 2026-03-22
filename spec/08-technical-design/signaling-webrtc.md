@@ -2,20 +2,27 @@
 
 房主 Runtime 作为信令服务器（Signaling Server），负责房间内所有客户端的连接调度。我们采用 **Mesh 拓扑**（每个人都与其他所有人建立 P2P 连接）作为主要媒体架构，房主节点负责在 P2P 失败时提供中转（Relay）。
 
-## 1. 会话建立时序图
+## 1. 发现服务与会话建立时序图
 
-本时序图展示了成员加入房间、获取状态，以及与其他成员通过信令交换建立 P2P WebRTC 通道的过程。
+本时序图展示了成员如何通过 6 位 Code 解析房间信息（展示二次确认弹窗），进而加入房间并与其他成员通过信令交换建立 P2P WebRTC 通道的过程。
 
 ```mermaid
 sequenceDiagram
     participant C1 as 成员 A (Client)
-    participant H as 房主 Runtime (WebSocket: 8080)
+    participant D as Discovery Service (云端轻量服务)
+    participant H as 房主 Runtime (WebSocket)
     participant C2 as 成员 B (Client)
 
+    %% 房间发现阶段 (6位Code)
+    C1->>D: HTTP GET /resolve?code=A9B2K8
+    D-->>C1: 返回 {roomName: "周末电竞开黑房", wsUrl: "ws://x.x.x.x:8080"}
+    C1->>C1: UI 弹窗询问“是否加入：周末电竞开黑房？”
+    C1->>C1: 用户点击“确认加入”
+
     %% 成员加入阶段
-    C1->>H: ws.connect(url?token=xxx)
+    C1->>H: ws.connect(wsUrl)
     H-->>C1: WS Connected
-    C1->>H: {type: "JOIN_ROOM", payload: {uuid, nickname}}
+    C1->>H: {type: "JOIN_ROOM", payload: {uuid, nickname, code: "A9B2K8"}}
     H->>C1: {type: "ROOM_STATE", payload: {members: [...]}}
     H->>C2: {type: "MEMBER_JOINED", payload: {uuid, nickname}}
 

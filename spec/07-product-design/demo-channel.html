@@ -2,137 +2,562 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>Local Voice Chat - Channel UI Demo</title>
+  <title>Local Voice Chat - Interactive Prototype</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
     body { background-color: #1e1f22; color: #f3f4f6; }
+    
+    /* Code Input Styles */
+    .code-input {
+      width: 3rem;
+      height: 4rem;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: bold;
+      background-color: #1e1f22;
+      border: 2px solid #4b5563;
+      border-radius: 0.5rem;
+      color: white;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+    .code-input:focus {
+      outline: none;
+      border-color: #6366f1; /* Indigo-500 */
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
   </style>
 </head>
-<body class="h-screen w-screen flex overflow-hidden font-sans">
+<body class="h-screen w-screen flex overflow-hidden font-sans relative">
 
-  <!-- 左侧：成员与本地控制区 -->
-  <aside class="w-64 bg-[#2b2d31] flex flex-col border-r border-[#1e1f22]">
-    <!-- 房间头部 -->
-    <div class="h-12 border-b border-[#1e1f22] flex items-center px-4 font-bold shadow-sm">
-      ⚔️ 周末电竞开黑房
-    </div>
-
-    <!-- 成员列表 -->
-    <div class="flex-1 overflow-y-auto p-2 space-y-1">
+  <!-- ========================================== -->
+  <!-- 1. 加入房间输入 Code 弹窗 -->
+  <!-- ========================================== -->
+  <div id="join-modal" class="fixed inset-0 bg-[#1e1f22] z-50 flex justify-center items-center">
+    <div class="bg-[#313338] p-8 rounded-xl shadow-2xl w-[480px] flex flex-col items-center text-center">
+      <h2 class="text-2xl font-bold mb-2">加入语音频道</h2>
+      <p class="text-gray-400 text-sm mb-8">请输入 6 位房间口令 (字母与数字)</p>
       
-      <!-- 成员项：房主自己 -->
-      <div class="flex items-center justify-between p-2 rounded hover:bg-[#3f4147] group cursor-pointer">
-        <div class="flex items-center space-x-2">
-          <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center font-bold">我</div>
-          <span class="text-sm font-medium text-blue-400">HuangJin (房主)</span>
-        </div>
-        <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> <!-- 说话指示灯 -->
+      <div class="flex space-x-3 mb-8" id="code-inputs">
+        <input type="text" maxlength="1" class="code-input" autofocus />
+        <input type="text" maxlength="1" class="code-input" />
+        <input type="text" maxlength="1" class="code-input" />
+        <input type="text" maxlength="1" class="code-input" />
+        <input type="text" maxlength="1" class="code-input" />
+        <input type="text" maxlength="1" class="code-input" />
       </div>
 
-      <!-- 成员项：其他玩家 -->
-      <div class="flex flex-col p-2 rounded hover:bg-[#3f4147] group cursor-pointer transition-all">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-2">
-            <div class="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center font-bold">A</div>
-            <span class="text-sm font-medium">Player A</span>
-          </div>
-          <!-- 悬浮时显示的快捷操作：本地屏蔽 -->
-          <button class="hidden group-hover:block text-gray-400 hover:text-red-400 text-xs" title="本地屏蔽">
-            🔇
-          </button>
-        </div>
-        <!-- 悬浮时显示的独立音量调节 -->
-        <div class="hidden group-hover:flex items-center mt-2 space-x-2 px-1">
-          <span class="text-[10px] text-gray-400">音量</span>
-          <input type="range" min="0" max="200" value="100" class="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer">
-        </div>
-      </div>
-
-    </div>
-
-    <!-- 底部：本地全局控制面板 -->
-    <div class="h-14 bg-[#232428] flex items-center justify-between px-3">
-      <div class="flex items-center space-x-2">
-        <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-sm">我</div>
-        <div class="flex flex-col">
-          <span class="text-xs font-bold leading-tight">HuangJin</span>
-          <span class="text-[10px] text-green-400 leading-tight">在线</span>
-        </div>
-      </div>
-      <div class="flex space-x-2 text-gray-400">
-        <button class="hover:text-white p-1 rounded hover:bg-gray-700" title="麦克风开关">🎤</button>
-        <button class="hover:text-white p-1 rounded hover:bg-gray-700" title="扬声器开关">🎧</button>
-        <button class="hover:text-white p-1 rounded hover:bg-gray-700" title="设置" onclick="window.location.href='demo-settings.html'">⚙️</button>
-      </div>
-    </div>
-  </aside>
-
-  <!-- 右侧：主交互区 -->
-  <main class="flex-1 flex flex-col relative bg-[#313338]">
-    <!-- 顶部导航与网络面板指示器 -->
-    <div class="h-12 border-b border-[#2b2d31] flex justify-between items-center px-4">
-      <div class="flex space-x-4 text-gray-400 text-sm">
-        <button class="hover:text-white font-medium border-b-2 border-indigo-500 pb-1">屏幕共享 📺</button>
-      </div>
-      <!-- 网络状态看板开关 -->
-      <div class="flex items-center space-x-2 text-xs text-green-400 bg-[#2b2d31] px-2 py-1 rounded cursor-pointer hover:bg-[#1e1f22]" title="点击展开/收起网络详情">
-        <span>Ping: 24ms</span>
-        <span class="text-gray-500">|</span>
-        <span>P2P直连</span>
-      </div>
-    </div>
-
-    <!-- 屏幕共享预览占位区 -->
-    <div class="flex-1 flex items-center justify-center p-4">
-      <div class="w-full h-full border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center text-gray-500 bg-[#2b2d31]">
-        <span class="text-4xl mb-2">🎮</span>
-        <p>当前无人共享屏幕</p>
-        <button class="mt-4 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-sm font-medium transition-colors">
-          开始共享我的屏幕
+      <div class="w-full flex justify-between items-center mt-4">
+        <button class="text-sm text-indigo-400 hover:underline">创建新房间</button>
+        <button id="btn-verify-code" class="px-6 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-md transition-colors opacity-50 cursor-not-allowed" disabled>
+          验证口令
         </button>
       </div>
     </div>
+  </div>
 
-    <!-- 底部：聊天框 (Chatbox) -->
-    <div class="h-64 border-t border-[#2b2d31] flex flex-col">
-      <!-- 消息列表 -->
-      <div class="flex-1 p-4 overflow-y-auto space-y-4">
-        <div class="flex space-x-3">
-          <div class="w-10 h-10 bg-gray-500 rounded-full flex-shrink-0 flex items-center justify-center font-bold">A</div>
-          <div>
-            <div class="flex items-baseline space-x-2">
-              <span class="font-medium text-sm text-blue-400">Player A</span>
-              <span class="text-xs text-gray-500">14:32</span>
+  <!-- ========================================== -->
+  <!-- 2. 二次确认加入弹窗 -->
+  <!-- ========================================== -->
+  <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden justify-center items-center">
+    <div class="bg-[#313338] p-6 rounded-lg shadow-2xl w-[400px] text-center border border-gray-700">
+      <div class="w-16 h-16 bg-indigo-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+        🎮
+      </div>
+      <h2 class="text-xl font-bold mb-2">是否加入房间？</h2>
+      <p class="text-indigo-400 font-bold text-lg mb-1" id="confirm-room-name">「周末电竞开黑房」</p>
+      <p class="text-gray-400 text-sm mb-6">当前在线：3 人 | 房主：HuangJin</p>
+      
+      <div class="flex space-x-4">
+        <button id="btn-cancel-join" class="flex-1 py-2 bg-transparent border border-gray-600 hover:bg-gray-700 text-white font-medium rounded-md transition-colors">
+          取消
+        </button>
+        <button id="btn-confirm-join" class="flex-1 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-md transition-colors">
+          确认加入
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 3. 主界面 (初始隐藏) -->
+  <!-- ========================================== -->
+  <div id="main-ui" class="flex w-full h-full hidden">
+    <!-- 左侧：成员与本地控制区 -->
+    <aside class="w-64 bg-[#2b2d31] flex flex-col border-r border-[#1e1f22]">
+      <!-- 房间头部 -->
+      <div class="h-12 border-b border-[#1e1f22] flex items-center px-4 font-bold shadow-sm justify-between group cursor-pointer hover:bg-[#3f4147] transition-colors" title="点击复制房间 Code">
+        <span class="truncate">⚔️ 周末电竞开黑房</span>
+        <span class="text-xs text-gray-500 font-mono group-hover:text-white">A9B2K8</span>
+      </div>
+
+      <!-- 成员列表 -->
+      <div class="flex-1 overflow-y-auto p-2 space-y-1">
+        
+        <!-- 成员项：房主自己 -->
+        <div class="flex items-center justify-between p-2 rounded hover:bg-[#3f4147] group cursor-pointer">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center font-bold">我</div>
+            <span class="text-sm font-medium text-blue-400">HuangJin (房主)</span>
+          </div>
+          <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse" id="my-speaking-indicator"></div>
+        </div>
+
+        <!-- 成员项：其他玩家 -->
+        <div class="flex flex-col p-2 rounded hover:bg-[#3f4147] group cursor-pointer transition-all">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <div class="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center font-bold">A</div>
+              <span class="text-sm font-medium">Player A</span>
             </div>
-            <p class="text-sm text-gray-300 mt-1">刚打到的战利品看看！</p>
-            <div class="mt-2 w-48 h-32 bg-[#1e1f22] rounded-md border border-gray-600 flex items-center justify-center text-xs text-gray-500">
-              [图片预览]
-            </div>
+            <!-- 悬浮时显示的快捷操作：本地屏蔽 -->
+            <button class="hidden group-hover:block text-gray-400 hover:text-red-400 text-xs transition-colors" title="本地屏蔽" onclick="toggleLocalMute(this)">
+              🔇
+            </button>
+          </div>
+          <!-- 悬浮时显示的独立音量调节 -->
+          <div class="hidden group-hover:flex items-center mt-2 space-x-2 px-1">
+            <span class="text-[10px] text-gray-400">音量</span>
+            <input type="range" min="0" max="200" value="100" class="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer">
           </div>
         </div>
       </div>
-      
-      <!-- 输入框区域 -->
-      <div class="p-4 pt-2 relative">
-        <!-- 错误提示气泡（默认隐藏，发送大图时显示） -->
-        <div class="absolute -top-8 left-4 bg-red-500 text-white text-xs px-3 py-1 rounded shadow-lg hidden">
-          ⚠️ 图片大小不能超过 5MB
+
+      <!-- 底部：本地全局控制面板 -->
+      <div class="h-14 bg-[#232428] flex items-center justify-between px-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-sm relative">
+            我
+            <!-- 麦克风关闭的小红标，初始隐藏 -->
+            <div id="mic-muted-badge" class="absolute -bottom-1 -right-1 bg-red-500 rounded-full w-4 h-4 flex items-center justify-center text-[8px] hidden">🔇</div>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xs font-bold leading-tight">HuangJin</span>
+            <span class="text-[10px] text-green-400 leading-tight" id="connection-status">在线</span>
+          </div>
         </div>
-        
-        <div class="bg-[#383a40] rounded-lg flex items-center p-2 focus-within:ring-1 ring-indigo-500">
-          <button class="text-gray-400 hover:text-white px-2 cursor-pointer transition-colors" title="上传图片/文件">
-            <span class="text-xl">⊕</span>
-          </button>
-          <input type="text" placeholder="输入消息... (支持 Ctrl+V 粘贴截图)" class="flex-1 bg-transparent border-none outline-none text-sm text-gray-200 px-2 placeholder-gray-500">
-          <button class="text-gray-400 hover:text-indigo-400 px-2 cursor-pointer transition-colors" title="发送">
-            <svg class="w-5 h-5 transform rotate-90" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>
+        <div class="flex space-x-1 text-gray-400">
+          <button id="btn-toggle-mic" class="hover:text-white p-1.5 rounded hover:bg-gray-700 transition-colors" title="麦克风开关">🎤</button>
+          <button id="btn-toggle-speaker" class="hover:text-white p-1.5 rounded hover:bg-gray-700 transition-colors" title="扬声器开关">🎧</button>
+          <button id="btn-open-settings" class="hover:text-white p-1.5 rounded hover:bg-gray-700 transition-colors" title="设置">⚙️</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 右侧：主交互区 -->
+    <main class="flex-1 flex flex-col relative bg-[#313338]">
+      <!-- 顶部导航与网络面板指示器 -->
+      <div class="h-12 border-b border-[#2b2d31] flex justify-between items-center px-4">
+        <div class="flex space-x-4 text-gray-400 text-sm">
+          <button class="hover:text-white font-medium border-b-2 border-indigo-500 pb-1">屏幕共享 📺</button>
+        </div>
+        <!-- 网络状态看板开关 -->
+        <div class="flex items-center space-x-2 text-xs text-green-400 bg-[#2b2d31] px-2 py-1 rounded cursor-pointer hover:bg-[#1e1f22]" title="点击展开/收起网络详情">
+          <span>Ping: 24ms</span>
+          <span class="text-gray-500">|</span>
+          <span>P2P直连</span>
+        </div>
+      </div>
+
+      <!-- 屏幕共享预览占位区 -->
+      <div class="flex-1 flex items-center justify-center p-4">
+        <div class="w-full h-full border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center text-gray-500 bg-[#2b2d31]">
+          <span class="text-4xl mb-2">🎮</span>
+          <p>当前无人共享屏幕</p>
+          <button id="btn-start-share" class="mt-4 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-sm font-medium transition-colors">
+            开始共享我的屏幕
           </button>
         </div>
       </div>
-    </div>
-  </main>
 
+      <!-- 底部：聊天框 (Chatbox) -->
+      <div class="h-64 border-t border-[#2b2d31] flex flex-col">
+        <!-- 消息列表 -->
+        <div class="flex-1 p-4 overflow-y-auto space-y-4" id="chat-messages">
+          <div class="flex space-x-3">
+            <div class="w-10 h-10 bg-gray-500 rounded-full flex-shrink-0 flex items-center justify-center font-bold">A</div>
+            <div>
+              <div class="flex items-baseline space-x-2">
+                <span class="font-medium text-sm text-blue-400">Player A</span>
+                <span class="text-xs text-gray-500">14:32</span>
+              </div>
+              <p class="text-sm text-gray-300 mt-1">刚打到的战利品看看！</p>
+              <div class="mt-2 w-48 h-32 bg-[#1e1f22] rounded-md border border-gray-600 flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:border-indigo-500 transition-colors">
+                [图片预览]
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 输入框区域 -->
+        <div class="p-4 pt-2 relative">
+          <!-- 错误提示气泡（默认隐藏） -->
+          <div id="upload-error" class="absolute -top-8 left-4 bg-red-500 text-white text-xs px-3 py-1 rounded shadow-lg hidden">
+            ⚠️ 图片大小不能超过 5MB
+          </div>
+          
+          <div class="bg-[#383a40] rounded-lg flex items-center p-2 focus-within:ring-1 ring-indigo-500 transition-all">
+            <button class="text-gray-400 hover:text-white px-2 cursor-pointer transition-colors" title="上传图片/文件" onclick="simulateError()">
+              <span class="text-xl">⊕</span>
+            </button>
+            <input type="text" id="chat-input" placeholder="输入消息... (支持 Ctrl+V 粘贴截图)" class="flex-1 bg-transparent border-none outline-none text-sm text-gray-200 px-2 placeholder-gray-500">
+            <button id="btn-send-msg" class="text-gray-400 hover:text-indigo-400 px-2 cursor-pointer transition-colors" title="发送">
+              <svg class="w-5 h-5 transform rotate-90" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 4. 设置面板 (模态框，初始隐藏) -->
+  <!-- ========================================== -->
+  <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden justify-center items-center">
+    <div class="bg-[#313338] w-[800px] h-[600px] rounded-lg shadow-2xl flex overflow-hidden border border-gray-700 transform scale-95 transition-transform duration-200">
+      
+      <!-- 左侧菜单 -->
+      <aside class="w-1/3 bg-[#2b2d31] p-4 flex flex-col">
+        <h2 class="text-xs font-bold text-gray-400 mb-2 px-2">用户设置</h2>
+        <button class="tab-btn w-full text-left px-2 py-1.5 text-sm text-gray-300 hover:bg-[#3f4147] hover:text-white rounded" data-target="tab-account">我的账号</button>
+        <button class="tab-btn w-full text-left px-2 py-1.5 text-sm bg-[#3f4147] text-white rounded" data-target="tab-audio">语音与设备</button>
+        <button class="tab-btn w-full text-left px-2 py-1.5 text-sm text-gray-300 hover:bg-[#3f4147] hover:text-white rounded" data-target="tab-hotkey">快捷键</button>
+
+        <div class="my-4 border-t border-gray-700"></div>
+
+        <h2 class="text-xs font-bold text-gray-400 mb-2 px-2">房主管理面板</h2>
+        <button class="tab-btn w-full text-left px-2 py-1.5 text-sm text-gray-300 hover:bg-[#3f4147] hover:text-white rounded" data-target="tab-room">房间设置 (口令)</button>
+        <button class="tab-btn w-full text-left px-2 py-1.5 text-sm text-gray-300 hover:bg-[#3f4147] hover:text-white rounded text-red-400" data-target="tab-ban">封禁与黑名单</button>
+        <button class="tab-btn w-full text-left px-2 py-1.5 text-sm text-gray-300 hover:bg-[#3f4147] hover:text-white rounded text-yellow-400" data-target="tab-transfer">移交房主权限</button>
+      </aside>
+
+      <!-- 右侧内容区 -->
+      <main class="flex-1 p-8 overflow-y-auto relative">
+        <!-- 关闭按钮 -->
+        <button id="btn-close-settings" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl font-bold transition-colors" title="关闭 (Esc)">&times;</button>
+
+        <!-- 标签页内容：语音与设备 (默认展示) -->
+        <div id="tab-audio" class="tab-content">
+          <h1 class="text-xl font-bold mb-6 text-white">语音与设备</h1>
+
+          <!-- 输入设备 -->
+          <div class="mb-6">
+            <label class="block text-xs font-bold text-gray-400 mb-2">输入设备 (麦克风)</label>
+            <select class="w-full bg-[#1e1f22] border border-gray-700 text-sm rounded p-2 text-gray-200 focus:outline-none focus:border-indigo-500 cursor-pointer">
+              <option>Default - MacBook Pro Microphone</option>
+              <option>External USB Mic</option>
+            </select>
+          </div>
+
+          <!-- 输出设备 -->
+          <div class="mb-6">
+            <label class="block text-xs font-bold text-gray-400 mb-2">输出设备 (扬声器)</label>
+            <select class="w-full bg-[#1e1f22] border border-gray-700 text-sm rounded p-2 text-gray-200 focus:outline-none focus:border-indigo-500 cursor-pointer">
+              <option>Default - MacBook Pro Speakers</option>
+              <option>AirPods Pro</option>
+            </select>
+          </div>
+
+          <div class="my-6 border-t border-gray-700"></div>
+
+          <!-- 输入模式 -->
+          <h2 class="text-sm font-bold text-gray-200 mb-4">输入模式</h2>
+          <div class="flex space-x-4 mb-4">
+            <label class="flex items-center space-x-2 text-sm text-gray-300 cursor-pointer">
+              <input type="radio" name="input_mode" class="text-indigo-500 bg-gray-800" checked>
+              <span>语音激活 (VAD)</span>
+            </label>
+            <label class="flex items-center space-x-2 text-sm text-gray-300 cursor-pointer">
+              <input type="radio" name="input_mode" class="text-indigo-500 bg-gray-800">
+              <span>按键说话 (PTT)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 标签页内容：封禁与黑名单 -->
+        <div id="tab-ban" class="tab-content hidden">
+          <h1 class="text-xl font-bold mb-6 text-white text-red-400">封禁与黑名单</h1>
+          <p class="text-sm text-gray-400 mb-4">被封禁的用户将无法通过当前口令加入房间。</p>
+          
+          <div class="bg-[#1e1f22] rounded border border-gray-700 p-4">
+            <div class="flex justify-between items-center mb-2">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm text-gray-300 font-bold">Player B</span>
+                <span class="text-xs text-gray-500 font-mono">UUID: 1234-5678...</span>
+              </div>
+              <button class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-xs rounded text-white transition-colors" onclick="this.innerText='已解封';this.disabled=true;this.classList.add('opacity-50')">解除封禁</button>
+            </div>
+            <div class="text-xs text-red-400 mt-1">封禁原因: 恶意刷屏</div>
+          </div>
+        </div>
+
+        <!-- 其他占位标签页 -->
+        <div id="tab-account" class="tab-content hidden"><h1 class="text-xl font-bold text-white">我的账号</h1><p class="text-gray-400 mt-4">（占位界面）</p></div>
+        <div id="tab-hotkey" class="tab-content hidden"><h1 class="text-xl font-bold text-white">快捷键</h1><p class="text-gray-400 mt-4">（占位界面）</p></div>
+        <div id="tab-room" class="tab-content hidden">
+          <h1 class="text-xl font-bold text-white">房间设置</h1>
+          <div class="mt-4">
+            <label class="block text-xs font-bold text-gray-400 mb-2">当前房间 Code</label>
+            <div class="flex items-center space-x-2">
+              <input type="text" value="A9B2K8" class="bg-[#1e1f22] border border-gray-700 text-sm rounded p-2 text-white font-mono w-32 text-center" readonly>
+              <button class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 rounded text-sm font-medium">重新生成</button>
+            </div>
+          </div>
+        </div>
+        <div id="tab-transfer" class="tab-content hidden"><h1 class="text-xl font-bold text-white text-yellow-400">移交房主权限</h1><p class="text-gray-400 mt-4">（占位界面）选择列表中的成员并移交底层 Host 进程。</p></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // ----------------------------------------------------
+    // 1. 验证码输入逻辑 (Join Modal)
+    // ----------------------------------------------------
+    const codeInputs = document.querySelectorAll('.code-input');
+    const btnVerify = document.getElementById('btn-verify-code');
+    const joinModal = document.getElementById('join-modal');
+    const confirmModal = document.getElementById('confirm-modal');
+    const mainUi = document.getElementById('main-ui');
+
+    codeInputs.forEach((input, index) => {
+      input.addEventListener('input', (e) => {
+        // 转大写
+        e.target.value = e.target.value.toUpperCase();
+        
+        // 自动聚焦下一个
+        if (e.target.value.length === 1 && index < codeInputs.length - 1) {
+          codeInputs[index + 1].focus();
+        }
+        
+        // 检查是否全部填满
+        const allFilled = Array.from(codeInputs).every(i => i.value.length === 1);
+        if (allFilled) {
+          btnVerify.disabled = false;
+          btnVerify.classList.remove('opacity-50', 'cursor-not-allowed');
+          // 自动触发验证 (模拟体验)
+          setTimeout(() => btnVerify.click(), 300);
+        } else {
+          btnVerify.disabled = true;
+          btnVerify.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+      });
+
+      // 支持退格键回退
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
+          codeInputs[index - 1].focus();
+        }
+      });
+
+      // 支持粘贴
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pasteData = e.clipboardData.getData('text').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+        pasteData.split('').forEach((char, i) => {
+          if (index + i < codeInputs.length) {
+            codeInputs[index + i].value = char;
+          }
+        });
+        if (pasteData.length === 6) {
+          btnVerify.disabled = false;
+          btnVerify.classList.remove('opacity-50', 'cursor-not-allowed');
+          setTimeout(() => btnVerify.click(), 300);
+        }
+      });
+    });
+
+    // ----------------------------------------------------
+    // 2. 弹窗流转逻辑
+    // ----------------------------------------------------
+    btnVerify.addEventListener('click', () => {
+      // 模拟请求成功，弹出二次确认
+      joinModal.classList.add('hidden');
+      confirmModal.classList.remove('hidden');
+      confirmModal.classList.add('flex');
+    });
+
+    document.getElementById('btn-cancel-join').addEventListener('click', () => {
+      confirmModal.classList.add('hidden');
+      confirmModal.classList.remove('flex');
+      joinModal.classList.remove('hidden');
+      // 清空
+      codeInputs.forEach(i => i.value = '');
+      codeInputs[0].focus();
+      btnVerify.disabled = true;
+      btnVerify.classList.add('opacity-50', 'cursor-not-allowed');
+    });
+
+    document.getElementById('btn-confirm-join').addEventListener('click', () => {
+      confirmModal.classList.add('hidden');
+      confirmModal.classList.remove('flex');
+      mainUi.classList.remove('hidden');
+    });
+
+    // ----------------------------------------------------
+    // 3. 麦克风/扬声器/设置 交互逻辑
+    // ----------------------------------------------------
+    let micMuted = false;
+    let speakerMuted = false;
+    
+    document.getElementById('btn-toggle-mic').addEventListener('click', (e) => {
+      micMuted = !micMuted;
+      const btn = e.currentTarget;
+      const badge = document.getElementById('mic-muted-badge');
+      const indicator = document.getElementById('my-speaking-indicator');
+      
+      if (micMuted) {
+        btn.classList.add('text-red-400');
+        btn.classList.remove('text-gray-400');
+        badge.classList.remove('hidden');
+        indicator.classList.remove('animate-pulse', 'bg-green-500');
+        indicator.classList.add('bg-gray-600');
+      } else {
+        btn.classList.remove('text-red-400');
+        btn.classList.add('text-gray-400');
+        badge.classList.add('hidden');
+        indicator.classList.add('animate-pulse', 'bg-green-500');
+        indicator.classList.remove('bg-gray-600');
+      }
+    });
+
+    document.getElementById('btn-toggle-speaker').addEventListener('click', (e) => {
+      speakerMuted = !speakerMuted;
+      const btn = e.currentTarget;
+      if (speakerMuted) {
+        btn.classList.add('text-red-400');
+        btn.classList.remove('text-gray-400');
+      } else {
+        btn.classList.remove('text-red-400');
+        btn.classList.add('text-gray-400');
+      }
+    });
+
+    // ----------------------------------------------------
+    // 4. 设置模态框逻辑与 Tab 切换
+    // ----------------------------------------------------
+    const settingsModal = document.getElementById('settings-modal');
+    const settingsInner = settingsModal.querySelector('div');
+
+    document.getElementById('btn-open-settings').addEventListener('click', () => {
+      settingsModal.classList.remove('hidden');
+      settingsModal.classList.add('flex');
+      setTimeout(() => settingsInner.classList.remove('scale-95'), 10);
+    });
+
+    document.getElementById('btn-close-settings').addEventListener('click', closeSettings);
+    
+    // 按 Esc 关闭
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !settingsModal.classList.contains('hidden')) {
+        closeSettings();
+      }
+    });
+
+    function closeSettings() {
+      settingsInner.classList.add('scale-95');
+      setTimeout(() => {
+        settingsModal.classList.add('hidden');
+        settingsModal.classList.remove('flex');
+      }, 200);
+    }
+
+    // Tab 切换逻辑
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // 重置所有 btn 样式
+        tabBtns.forEach(b => {
+          b.classList.remove('bg-[#3f4147]', 'text-white');
+          if (!b.classList.contains('text-red-400') && !b.classList.contains('text-yellow-400')) {
+            b.classList.add('text-gray-300');
+          }
+        });
+        // 激活当前 btn
+        btn.classList.add('bg-[#3f4147]', 'text-white');
+        if (!btn.classList.contains('text-red-400') && !btn.classList.contains('text-yellow-400')) {
+          btn.classList.remove('text-gray-300');
+        }
+
+        // 切换内容
+        const targetId = btn.getAttribute('data-target');
+        tabContents.forEach(content => {
+          if (content.id === targetId) {
+            content.classList.remove('hidden');
+          } else {
+            content.classList.add('hidden');
+          }
+        });
+      });
+    });
+
+    // ----------------------------------------------------
+    // 5. 其他杂项交互
+    // ----------------------------------------------------
+    // 模拟发送消息
+    document.getElementById('btn-send-msg').addEventListener('click', () => {
+      const input = document.getElementById('chat-input');
+      if (input.value.trim() === '') return;
+      
+      const list = document.getElementById('chat-messages');
+      const msgHTML = `
+        <div class="flex space-x-3">
+          <div class="w-10 h-10 bg-blue-500 rounded-full flex-shrink-0 flex items-center justify-center font-bold">我</div>
+          <div>
+            <div class="flex items-baseline space-x-2">
+              <span class="font-medium text-sm text-blue-400">HuangJin</span>
+              <span class="text-xs text-gray-500">刚刚</span>
+            </div>
+            <p class="text-sm text-gray-300 mt-1">${input.value}</p>
+          </div>
+        </div>
+      `;
+      list.insertAdjacentHTML('beforeend', msgHTML);
+      input.value = '';
+      list.scrollTop = list.scrollHeight;
+    });
+
+    // 模拟图片过大错误
+    function simulateError() {
+      const err = document.getElementById('upload-error');
+      err.classList.remove('hidden');
+      setTimeout(() => err.classList.add('hidden'), 3000);
+    }
+
+    // 本地屏蔽切换
+    window.toggleLocalMute = function(btn) {
+      if (btn.innerText === '🔇') {
+        btn.innerText = '🔊';
+        btn.classList.add('text-red-500');
+        btn.title = "取消本地屏蔽";
+      } else {
+        btn.innerText = '🔇';
+        btn.classList.remove('text-red-500');
+        btn.title = "本地屏蔽";
+      }
+    };
+
+    // 屏幕共享切换
+    let isSharing = false;
+    document.getElementById('btn-start-share').addEventListener('click', (e) => {
+      isSharing = !isSharing;
+      if (isSharing) {
+        e.target.innerText = '停止共享';
+        e.target.classList.replace('bg-indigo-500', 'bg-red-500');
+        e.target.classList.replace('hover:bg-indigo-600', 'hover:bg-red-600');
+        e.target.previousElementSibling.innerText = '你的屏幕正在共享中...';
+      } else {
+        e.target.innerText = '开始共享我的屏幕';
+        e.target.classList.replace('bg-red-500', 'bg-indigo-500');
+        e.target.classList.replace('hover:bg-red-600', 'hover:bg-indigo-600');
+        e.target.previousElementSibling.innerText = '当前无人共享屏幕';
+      }
+    });
+
+  </script>
 </body>
 </html>

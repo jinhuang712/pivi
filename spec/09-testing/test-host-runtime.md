@@ -3,27 +3,29 @@
 ## 1. WebSocket 连接与鉴权模块
 
 ### [TC-HR-01] 正常成员加入房间
-- **描述**：验证携带正确口令与有效 UUID 的客户端能否成功建立 WS 连接。
-- **前置条件**：Host Runtime 已启动，设置口令为 `1234`。
-- **测试步骤**：
-  1. 客户端 A 尝试连接 `ws://localhost:8080?token=1234&uuid=uuid-a`。
-  2. 客户端 B 尝试连接 `ws://localhost:8080?token=1234&uuid=uuid-b`。
+- **描述**：验证携带正确 6 位 Code 与有效 UUID 的客户端能否成功建立 WS 连接。
+- **前置条件**：Host Runtime 已启动，设置口令为 `A9B2K8`。
+- **步骤**：
+  1. Client A 使用 Code `A9B2K8` 发起 WebSocket 连接并发送 `JOIN_ROOM`。
+  2. Client B 使用 Code `A9B2K8` 发起连接并发送 `JOIN_ROOM`。
 - **预期结果**：
-  - A 和 B 均连接成功。
+  - A 和 B 都能收到 WebSocket 成功连接响应。
   - A 收到 `ROOM_STATE` 包含 A 和 B 的信息（若 B 先加入）。
-  - Runtime 内部 `members` Map 大小为 2。
+  - B 加入时，A 收到 `MEMBER_JOINED` 广播。
 
 ### [TC-HR-02] 口令错误拒绝连接
-- **描述**：验证携带错误口令的连接请求在 HTTP Upgrade 阶段被拒绝。
-- **前置条件**：Host Runtime 设置口令为 `1234`。
-- **测试步骤**：客户端尝试连接 `ws://localhost:8080?token=9999&uuid=uuid-c`。
-- **预期结果**：连接被拒绝，返回 HTTP 401 Unauthorized。
+- **描述**：验证携带错误 Code 的连接请求在鉴权阶段被拒绝。
+- **前置条件**：Host Runtime 设置口令为 `A9B2K8`。
+- **步骤**：
+  1. Client C 携带 `B1C2D3` 尝试发送 `JOIN_ROOM`。
+- **预期结果**：
+  - Host Runtime 返回错误或直接关闭连接（如状态码 4003）。
 
-### [TC-HR-03] 黑名单拦截测试
-- **描述**：验证在黑名单中的 UUID 即使口令正确也会被拒绝连接。
-- **前置条件**：Host Runtime 设置口令为 `1234`，黑名单 Set 包含 `uuid-evil`。
-- **测试步骤**：客户端尝试连接 `ws://localhost:8080?token=1234&uuid=uuid-evil`。
-- **预期结果**：连接被拒绝，返回 HTTP 403 Forbidden。
+### [TC-HR-03] 黑名单拦截
+- **描述**：验证在黑名单中的 UUID 即使 Code 正确也会被拒绝连接。
+- **前置条件**：Host Runtime 设置口令为 `A9B2K8`，黑名单 Set 包含 `uuid-evil`。
+- **测试步骤**：客户端携带 `A9B2K8` 发起连接，并使用 `uuid-evil` 发送 `JOIN_ROOM`。
+- **预期结果**：连接被拒绝，返回错误或断开连接。
 
 ---
 
