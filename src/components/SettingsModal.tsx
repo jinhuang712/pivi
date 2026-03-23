@@ -6,20 +6,44 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState('audio');
-  const [roomCode, setRoomCode] = useState('A9B2K8');
+  const [activeTab, setActiveTab] = useState('account');
   const [isUnbanned, setIsUnbanned] = useState(false);
+  const [nickname, setNickname] = useState('HuangJin');
+  const uuid = 'user-uuid-1234-5678';
+  
+  // Hotkey states
+  const [pttHotkey, setPttHotkey] = useState('V');
+  const [muteHotkey, setMuteHotkey] = useState('M');
+  const [isRecordingHotkey, setIsRecordingHotkey] = useState<'ptt' | 'mute' | null>(null);
 
-  // Handle Escape key to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // If we are recording a hotkey, capture it instead of standard behavior
+      if (isRecordingHotkey) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Escape cancels recording
+        if (e.key === 'Escape') {
+          setIsRecordingHotkey(null);
+          return;
+        }
+
+        const keyName = e.key.toUpperCase();
+        if (isRecordingHotkey === 'ptt') setPttHotkey(keyName);
+        if (isRecordingHotkey === 'mute') setMuteHotkey(keyName);
+        
+        setIsRecordingHotkey(null);
+        return;
+      }
+
       if (e.key === 'Escape' && isOpen) {
         onClose();
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isRecordingHotkey]);
 
   if (!isOpen) return null;
 
@@ -80,21 +104,66 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
         );
-      case 'room':
+      case 'hotkey':
         return (
-          <div id="tab-room">
-            <h1 className="text-xl font-bold text-white">房间设置</h1>
-            <div className="mt-4">
-              <label className="block text-xs font-bold text-gray-400 mb-2">当前房间 Code</label>
-              <div className="flex items-center space-x-2">
-                <input type="text" value={roomCode} className="bg-[#1e1f22] border border-gray-700 text-sm rounded p-2 text-white font-mono w-32 text-center" readOnly />
-                <button 
-                  onClick={() => setRoomCode(Math.random().toString(36).substring(2, 8).toUpperCase())}
-                  className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 rounded text-sm font-medium text-white"
-                >
-                  重新生成
-                </button>
+          <div id="tab-hotkey">
+            <h1 className="text-xl font-bold mb-6 text-white">快捷键</h1>
+            <p className="text-sm text-gray-400 mb-6">点击输入框后按下你想要绑定的按键（按 Esc 取消录制）。</p>
+            
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-gray-400 mb-2" htmlFor="ptt-input">按键说话 (PTT) 快捷键</label>
+              <input 
+                id="ptt-input"
+                type="text" 
+                value={isRecordingHotkey === 'ptt' ? '录制中...' : pttHotkey}
+                readOnly
+                onFocus={() => setIsRecordingHotkey('ptt')}
+                onBlur={() => setIsRecordingHotkey(null)}
+                className={`w-full bg-[#1e1f22] border text-sm rounded p-2 text-white font-mono cursor-pointer transition-colors outline-none
+                  ${isRecordingHotkey === 'ptt' ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-700 hover:border-gray-500'}
+                `}
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-gray-400 mb-2" htmlFor="mute-input">全局静音/解除静音 快捷键</label>
+              <input 
+                id="mute-input"
+                type="text" 
+                value={isRecordingHotkey === 'mute' ? '录制中...' : muteHotkey}
+                readOnly
+                onFocus={() => setIsRecordingHotkey('mute')}
+                onBlur={() => setIsRecordingHotkey(null)}
+                className={`w-full bg-[#1e1f22] border text-sm rounded p-2 text-white font-mono cursor-pointer transition-colors outline-none
+                  ${isRecordingHotkey === 'mute' ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-700 hover:border-gray-500'}
+                `}
+              />
+            </div>
+          </div>
+        );
+      case 'account':
+        return (
+          <div id="tab-account">
+            <h1 className="text-xl font-bold mb-6 text-white">我的账号</h1>
+            
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-gray-400 mb-2" htmlFor="nickname-input">显示昵称</label>
+              <input 
+                id="nickname-input"
+                type="text" 
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                className="w-full bg-[#1e1f22] border border-gray-700 focus:border-indigo-500 text-sm rounded p-2 text-white outline-none transition-colors"
+              />
+              <p className="text-xs text-gray-500 mt-2">即时生效，持久化保存于本地，并广播给房间内其他人更新 UI。</p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-gray-400 mb-2">唯一标识符 (UUID)</label>
+              <div className="bg-[#1e1f22] border border-gray-700 text-sm rounded p-2 text-gray-400 font-mono">
+                {uuid}
               </div>
+              <p className="text-xs text-gray-500 mt-2">系统自动分配的本地唯一 UUID，仅用于故障排查和黑名单识别，无法修改。</p>
             </div>
           </div>
         );
@@ -108,13 +177,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const navItemClass = (id: string, isDanger: boolean = false, isWarn: boolean = false) => {
+  const navItemClass = (id: string, isDanger: boolean = false) => {
     let base = "w-full text-left px-2 py-1.5 text-sm rounded transition-colors ";
     if (activeTab === id) {
       base += "bg-[#3f4147] text-white";
     } else {
       if (isDanger) base += "text-red-400 hover:bg-[#3f4147] hover:text-white";
-      else if (isWarn) base += "text-yellow-400 hover:bg-[#3f4147] hover:text-white";
       else base += "text-gray-300 hover:bg-[#3f4147] hover:text-white";
     }
     return base;
@@ -125,18 +193,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       <div className="bg-[#313338] w-[800px] h-[600px] rounded-lg shadow-2xl flex overflow-hidden border border-gray-700">
         
         {/* 左侧菜单 */}
-        <aside className="w-1/3 bg-[#2b2d31] p-4 flex flex-col">
-          <h2 className="text-xs font-bold text-gray-400 mb-2 px-2">用户设置</h2>
+        <aside className="w-1/3 bg-[#2b2d31] p-4 flex flex-col space-y-1">
           <button className={navItemClass('account')} onClick={() => setActiveTab('account')}>我的账号</button>
           <button className={navItemClass('audio')} onClick={() => setActiveTab('audio')}>语音与设备</button>
           <button className={navItemClass('hotkey')} onClick={() => setActiveTab('hotkey')}>快捷键</button>
-
-          <div className="my-4 border-t border-gray-700"></div>
-
-          <h2 className="text-xs font-bold text-gray-400 mb-2 px-2">房主管理面板</h2>
-          <button className={navItemClass('room')} onClick={() => setActiveTab('room')}>房间设置 (口令)</button>
           <button className={navItemClass('ban', true)} onClick={() => setActiveTab('ban')}>封禁与黑名单</button>
-          <button className={navItemClass('transfer', false, true)} onClick={() => setActiveTab('transfer')}>移交房主权限</button>
         </aside>
 
         {/* 右侧内容区 */}

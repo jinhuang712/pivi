@@ -10,25 +10,25 @@ describe('SettingsModal Component', () => {
 
   it('should not render when isOpen is false', () => {
     render(<SettingsModal {...defaultProps} isOpen={false} />);
-    expect(screen.queryByText('用户设置')).not.toBeInTheDocument();
+    expect(screen.queryByText('我的账号')).not.toBeInTheDocument();
   });
 
-  it('should render default tab content (Audio & Devices)', () => {
+  it('should render default tab content (Account)', () => {
     render(<SettingsModal {...defaultProps} />);
-    expect(screen.getByText('用户设置')).toBeInTheDocument();
-    expect(screen.getByText('房主管理面板')).toBeInTheDocument();
+    expect(screen.getAllByText('我的账号').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('语音与设备').length).toBeGreaterThan(0);
     
-    // Default tab should be '语音与设备'
-    const audioHeading = screen.getAllByText('语音与设备').find(el => el.tagName.toLowerCase() === 'h1');
-    expect(audioHeading).toBeInTheDocument();
-    expect(screen.getByText('输入设备 (麦克风)')).toBeInTheDocument();
+    // Default tab should be '我的账号'
+    const accountHeading = screen.getAllByText('我的账号').find(el => el.tagName.toLowerCase() === 'h1');
+    expect(accountHeading).toBeInTheDocument();
+    expect(screen.getByLabelText('显示昵称')).toBeInTheDocument();
   });
 
   it('should switch tabs when clicked', () => {
     render(<SettingsModal {...defaultProps} />);
     
     // Click on '封禁与黑名单' tab
-    const banTab = screen.getByText('封禁与黑名单');
+    const banTab = screen.getAllByText('封禁与黑名单')[0];
     fireEvent.click(banTab);
     
     // The content for Ban list should appear
@@ -46,6 +46,10 @@ describe('SettingsModal Component', () => {
 
   it('should allow changing input mode in Audio tab', () => {
     render(<SettingsModal {...defaultProps} />);
+    
+    // Switch to Audio tab
+    fireEvent.click(screen.getAllByText('语音与设备')[0]);
+
     const vadRadio = screen.getByLabelText('语音激活 (VAD)');
     const pttRadio = screen.getByLabelText('按键说话 (PTT)');
 
@@ -57,31 +61,11 @@ describe('SettingsModal Component', () => {
     expect(vadRadio).not.toBeChecked();
   });
 
-  it('should trigger regenerate code action in Room tab', () => {
-    render(<SettingsModal {...defaultProps} />);
-    
-    // Switch to Room tab
-    fireEvent.click(screen.getByText('房间设置 (口令)'));
-    
-    // Find the readonly input and button
-    const codeInput = screen.getByDisplayValue('A9B2K8');
-    const regenBtn = screen.getByText('重新生成');
-    
-    expect(codeInput).toBeInTheDocument();
-    expect(codeInput).toHaveAttribute('readonly');
-    
-    // Simulate click, expect value to change (mock logic in component)
-    fireEvent.click(regenBtn);
-    expect(codeInput).not.toHaveValue('A9B2K8');
-    // Assuming the new code is 6 characters alphanumeric
-    expect((codeInput as HTMLInputElement).value).toMatch(/^[A-Z0-9]{6}$/);
-  });
-
   it('should allow unbanning a user in Ban tab', () => {
     render(<SettingsModal {...defaultProps} />);
     
     // Switch to Ban tab
-    fireEvent.click(screen.getByText('封禁与黑名单'));
+    fireEvent.click(screen.getAllByText('封禁与黑名单')[0]);
     
     const unbanBtn = screen.getByText('解除封禁');
     expect(unbanBtn).toBeInTheDocument();
@@ -91,5 +75,39 @@ describe('SettingsModal Component', () => {
     // After clicking, it should show '已解封' and be disabled
     expect(unbanBtn).toHaveTextContent('已解封');
     expect(unbanBtn).toBeDisabled();
+  });
+
+  it('should render hotkey settings and allow capturing keys', () => {
+    render(<SettingsModal {...defaultProps} />);
+    
+    // Switch to Hotkey tab
+    fireEvent.click(screen.getAllByText('快捷键')[0]);
+    
+    const pttInput = screen.getByLabelText('按键说话 (PTT) 快捷键');
+    expect(pttInput).toBeInTheDocument();
+    
+    // Simulate focusing and pressing a key to capture
+    fireEvent.focus(pttInput);
+    fireEvent.keyDown(pttInput, { key: 'V', code: 'KeyV' });
+    
+    expect(pttInput).toHaveValue('V');
+  });
+
+  it('should allow modifying nickname in Account tab', () => {
+    render(<SettingsModal {...defaultProps} />);
+    
+    // Account tab is default, no need to switch
+    // fireEvent.click(screen.getAllByText('我的账号')[0]);
+    
+    const nicknameInput = screen.getByLabelText('显示昵称');
+    expect(nicknameInput).toBeInTheDocument();
+    expect(nicknameInput).toHaveValue('HuangJin');
+    
+    // Modify nickname
+    fireEvent.change(nicknameInput, { target: { value: 'NewNickname' } });
+    expect(nicknameInput).toHaveValue('NewNickname');
+    
+    // Check UUID
+    expect(screen.getByText('user-uuid-1234-5678')).toBeInTheDocument();
   });
 });
