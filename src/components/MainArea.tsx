@@ -10,6 +10,8 @@ interface ChatMessage {
 
 const MainArea: React.FC = () => {
   const [isSharing, setIsSharing] = useState(false);
+  const [isExpandedShare, setIsExpandedShare] = useState(false);
+  const [quality, setQuality] = useState('1080p');
   const [inputValue, setInputValue] = useState('');
   const [showError, setShowError] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -49,67 +51,120 @@ const MainArea: React.FC = () => {
   };
 
   return (
-    <main className="flex-1 flex flex-col relative bg-[#313338]">
+    <main className="flex-1 flex flex-col relative bg-[#313338] h-full overflow-hidden">
       {/* 顶部导航与网络面板指示器 */}
-      <div className="h-12 border-b border-[#2b2d31] flex justify-between items-center px-4">
-        <div className="flex space-x-4 text-gray-400 text-sm">
-          <button className="hover:text-white font-medium border-b-2 border-indigo-500 pb-1">
-            屏幕共享 📺
-          </button>
-        </div>
-        {/* 网络状态看板开关 */}
-        <div 
-          className="flex items-center space-x-2 text-xs text-green-400 bg-[#2b2d31] px-2 py-1 rounded cursor-pointer hover:bg-[#1e1f22]" 
-          title="点击展开/收起网络详情"
-        >
-          <span>Ping: 24ms</span>
-          <span className="text-gray-500">|</span>
-          <span>P2P直连</span>
-        </div>
-      </div>
-
-      {/* 屏幕共享预览占位区 */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full h-full border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center text-gray-500 bg-[#2b2d31]">
-          <span className="text-4xl mb-2">🎮</span>
-          <p>{isSharing ? '你的屏幕正在共享中...' : '当前无人共享屏幕'}</p>
-          <button 
-            onClick={() => setIsSharing(!isSharing)}
-            className={`mt-4 px-4 py-2 rounded text-sm font-medium transition-colors text-white ${
-              isSharing 
-                ? 'bg-red-500 hover:bg-red-600' 
-                : 'bg-indigo-500 hover:bg-indigo-600'
-            }`}
-          >
-            {isSharing ? '停止共享' : '开始共享我的屏幕'}
-          </button>
-        </div>
-      </div>
-
-      {/* 底部：聊天框 (Chatbox) */}
-      <div className="h-64 border-t border-[#2b2d31] flex flex-col">
-        {/* 消息列表 */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-4" id="chat-messages">
-          {messages.map((msg) => (
-            <div key={msg.id} className="flex space-x-3">
-              <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold ${msg.isSelf ? 'bg-blue-500' : 'bg-gray-500'}`}>
-                {msg.isSelf ? '我' : msg.sender.charAt(0)}
-              </div>
-              <div>
-                <div className="flex items-baseline space-x-2">
-                  <span className={`font-medium text-sm ${msg.isSelf ? 'text-blue-400' : 'text-gray-300'}`}>
-                    {msg.sender}
-                  </span>
-                  <span className="text-xs text-gray-500">{msg.time}</span>
-                </div>
-                <p className="text-sm text-gray-300 mt-1">{msg.content}</p>
-              </div>
-            </div>
-          ))}
+      <div className="h-14 border-b border-[#2b2d31] flex justify-between items-center px-6 flex-shrink-0">
+        <div className="flex space-x-4 text-white font-bold text-lg">
+          <span>房间聊天区</span>
         </div>
         
-        {/* 输入框区域 */}
-        <div className="p-4 pt-2 relative">
+        <div className="flex items-center space-x-4">
+          {/* 共享控制 */}
+          {!isSharing ? (
+            <button 
+              onClick={() => setIsSharing(true)}
+              className="text-sm bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded transition-colors flex items-center space-x-1"
+            >
+              <span>📺</span>
+              <span>开始共享</span>
+            </button>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <select 
+                value={quality} 
+                onChange={(e) => setQuality(e.target.value)}
+                className="bg-[#1e1f22] text-xs text-gray-300 border border-gray-700 rounded px-2 py-1 outline-none cursor-pointer"
+              >
+                <option value="720p">720p</option>
+                <option value="1080p">1080p</option>
+                <option value="原画">原画</option>
+              </select>
+              <button 
+                onClick={() => { setIsSharing(false); setIsExpandedShare(false); }}
+                className="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded transition-colors"
+              >
+                停止共享
+              </button>
+            </div>
+          )}
+
+          {/* 网络状态看板开关 */}
+          <div 
+            className="flex items-center space-x-2 text-xs text-green-400 bg-[#2b2d31] px-2 py-1.5 rounded cursor-pointer hover:bg-[#1e1f22]" 
+            title="点击展开/收起网络详情"
+          >
+            <span>Ping: 24ms</span>
+            <span className="text-gray-500">|</span>
+            <span>P2P直连</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col relative min-h-0">
+        
+        {/* Expanded Screen Share Area */}
+        {isExpandedShare && isSharing && (
+          <div className="flex-1 bg-[#1e1f22] border-b border-[#2b2d31] flex flex-col items-center justify-center relative min-h-0">
+            <button 
+              onClick={() => setIsExpandedShare(false)}
+              className="absolute top-4 right-4 bg-black bg-opacity-60 hover:bg-opacity-80 text-white px-3 py-1 rounded text-sm transition-all z-10"
+            >
+              缩小至角落 ↘️
+            </button>
+            <span className="text-6xl mb-4">🎮</span>
+            <span className="text-gray-400 font-medium">完整屏幕画面 ({quality})</span>
+          </div>
+        )}
+
+        {/* Chat Area */}
+        <div className={`flex flex-col bg-[#313338] min-h-0 ${isExpandedShare && isSharing ? 'h-1/3' : 'flex-1'}`}>
+          
+          {/* Floating Thumbnail (PIP) */}
+          {!isExpandedShare && isSharing && (
+            <div 
+              className="absolute top-4 right-4 z-20 w-64 h-36 bg-black border border-gray-600 rounded-lg shadow-2xl overflow-hidden group cursor-pointer" 
+              onClick={() => setIsExpandedShare(true)}
+            >
+              {/* Blurred Background */}
+              <div className="absolute inset-0 flex items-center justify-center filter blur-sm group-hover:blur-none transition-all duration-300">
+                 <span className="text-4xl">🎮</span>
+              </div>
+              {/* Overlay */}
+              <div className="absolute inset-0 bg-black bg-opacity-40 group-hover:bg-opacity-10 transition-all flex items-center justify-center">
+                <span className="text-white text-sm font-bold bg-black bg-opacity-60 px-3 py-1 rounded opacity-100 group-hover:opacity-0 transition-opacity">
+                  点击放大画面
+                </span>
+              </div>
+              {/* Label */}
+              <div className="absolute bottom-2 left-2 text-[10px] text-white bg-black bg-opacity-60 px-1.5 py-0.5 rounded">
+                正在共享 ({quality})
+              </div>
+            </div>
+          )}
+
+          {/* 消息列表 */}
+          <div className="flex-1 p-4 overflow-y-auto space-y-4" id="chat-messages">
+            {messages.map((msg) => (
+              <div key={msg.id} className="flex space-x-3">
+                <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold ${msg.isSelf ? 'bg-blue-500' : 'bg-gray-500'}`}>
+                  {msg.isSelf ? '我' : msg.sender.charAt(0)}
+                </div>
+                <div>
+                  <div className="flex items-baseline space-x-2">
+                    <span className={`font-medium text-sm ${msg.isSelf ? 'text-blue-400' : 'text-gray-300'}`}>
+                      {msg.sender}
+                    </span>
+                    <span className="text-xs text-gray-500">{msg.time}</span>
+                  </div>
+                  <p className="text-sm text-gray-300 mt-1">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* 输入框区域 */}
+          <div className="p-4 pt-2 relative border-t border-[#2b2d31]">
           {/* 错误提示气泡 */}
           {showError && (
             <div className="absolute -top-8 left-4 bg-red-500 text-white text-xs px-3 py-1 rounded shadow-lg">
@@ -144,6 +199,7 @@ const MainArea: React.FC = () => {
             </button>
           </div>
         </div>
+      </div>
       </div>
     </main>
   );

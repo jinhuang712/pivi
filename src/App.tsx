@@ -9,10 +9,9 @@ import MainArea from "./components/MainArea";
 function App() {
   const [appState, setAppState] = useState<'join' | 'confirm' | 'channel'>('join');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [roomCode, setRoomCode] = useState("");
 
   const handleCodeComplete = (code: string) => {
-    setRoomCode(code);
+    // roomCode logic is removed or handled elsewhere, simply set joined
     setAppState('confirm');
   };
 

@@ -86,20 +86,46 @@
   <!-- ========================================== -->
   <div id="main-ui" class="flex w-full h-full hidden">
     <!-- 左侧：成员与本地控制区 -->
-    <aside class="w-64 bg-[#2b2d31] flex flex-col border-r border-[#1e1f22]">
+    <aside class="w-80 bg-[#2b2d31] flex flex-col border-r border-[#1e1f22] flex-shrink-0">
       <!-- 房间头部 -->
-      <div class="h-14 border-b border-[#1e1f22] flex flex-col justify-center px-4 shadow-sm group cursor-pointer hover:bg-[#3f4147] transition-colors text-white relative">
-        <div class="flex items-center justify-between font-bold">
+      <div class="p-4 border-b border-[#1e1f22] flex flex-col justify-center shadow-sm text-white relative">
+        <div class="flex items-center justify-between font-bold text-lg mb-3">
           <span class="truncate">⚔️ 周末电竞开黑房</span>
         </div>
-        <div class="flex items-center justify-between mt-0.5">
-          <span class="text-xs text-gray-400 font-mono" title="点击复制口令">Code: <span class="text-gray-300 group-hover:text-white">A9B2K8</span></span>
-          <button class="text-[10px] text-indigo-400 hover:text-indigo-300 hidden group-hover:block transition-colors" title="重新生成口令">重新生成</button>
+        <div class="flex items-center justify-between bg-[#1e1f22] rounded-md px-3 py-2 border border-gray-700">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs text-gray-400">Code:</span>
+            <span class="text-lg text-white font-mono tracking-wider font-bold">A9B2K8</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button class="text-gray-400 hover:text-white transition-colors" title="复制口令">📋</button>
+            <button class="text-indigo-400 hover:text-indigo-300 transition-colors" title="重新生成口令">🔄</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 我的信息与设置 (原底部面板) -->
+      <div class="p-4 bg-[#232428] flex items-center justify-between border-b border-[#1e1f22] shadow-inner">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm">我</div>
+          <div class="flex flex-col">
+            <span class="text-sm font-bold leading-tight text-white mb-0.5">HuangJin</span>
+            <span class="text-xs text-green-400 leading-tight flex items-center"><span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1 animate-pulse"></span>在线</span>
+          </div>
+        </div>
+        <div class="flex space-x-1 text-gray-400">
+          <button id="btn-toggle-mic" class="hover:text-white p-2 rounded hover:bg-gray-700 transition-colors relative" title="麦克风开关">
+            🎤
+            <span id="mic-muted-badge" class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full hidden"></span>
+          </button>
+          <button id="btn-toggle-speaker" class="hover:text-white p-2 rounded hover:bg-gray-700 transition-colors" title="扬声器开关">🎧</button>
+          <button id="btn-open-settings" class="hover:text-white p-2 rounded hover:bg-gray-700 transition-colors" title="设置">⚙️</button>
         </div>
       </div>
 
       <!-- 成员列表 -->
       <div class="flex-1 overflow-y-auto p-2 space-y-1">
+        <div class="px-2 py-1 mt-2 mb-1 text-xs font-bold text-gray-500">在线成员 - 2</div>
         
         <!-- 成员项：房主自己 -->
         <div class="flex items-center justify-between p-2 rounded hover:bg-[#3f4147] group cursor-pointer">
@@ -552,19 +578,51 @@
 
     // 屏幕共享切换
     let isSharing = false;
-    document.getElementById('btn-start-share').addEventListener('click', (e) => {
+    let isExpanded = false;
+
+    const btnStartShare = document.getElementById('btn-start-share');
+    const expandedArea = document.getElementById('expanded-share-area');
+    const pipArea = document.getElementById('pip-share-area');
+    const chatContainer = document.getElementById('chat-container');
+    const btnShrinkShare = document.getElementById('btn-shrink-share');
+
+    btnStartShare.addEventListener('click', (e) => {
       isSharing = !isSharing;
       if (isSharing) {
-        e.target.innerText = '停止共享';
-        e.target.classList.replace('bg-indigo-500', 'bg-red-500');
-        e.target.classList.replace('hover:bg-indigo-600', 'hover:bg-red-600');
-        e.target.previousElementSibling.innerText = '你的屏幕正在共享中...';
+        // Start sharing (default to PIP)
+        e.currentTarget.innerHTML = `<span>🛑</span><span>停止共享</span>`;
+        e.currentTarget.classList.replace('bg-indigo-500', 'bg-red-500');
+        e.currentTarget.classList.replace('hover:bg-indigo-600', 'hover:bg-red-600');
+        pipArea.classList.remove('hidden');
       } else {
-        e.target.innerText = '开始共享我的屏幕';
-        e.target.classList.replace('bg-red-500', 'bg-indigo-500');
-        e.target.classList.replace('hover:bg-red-600', 'hover:bg-indigo-600');
-        e.target.previousElementSibling.innerText = '当前无人共享屏幕';
+        // Stop sharing
+        e.currentTarget.innerHTML = `<span>📺</span><span>开始共享</span>`;
+        e.currentTarget.classList.replace('bg-red-500', 'bg-indigo-500');
+        e.currentTarget.classList.replace('hover:bg-red-600', 'hover:bg-indigo-600');
+        pipArea.classList.add('hidden');
+        expandedArea.classList.add('hidden');
+        chatContainer.classList.remove('h-1/3');
+        chatContainer.classList.add('flex-1');
+        isExpanded = false;
       }
+    });
+
+    pipArea.addEventListener('click', () => {
+      isExpanded = true;
+      pipArea.classList.add('hidden');
+      expandedArea.classList.remove('hidden');
+      expandedArea.classList.add('flex');
+      chatContainer.classList.remove('flex-1');
+      chatContainer.classList.add('h-1/3');
+    });
+
+    btnShrinkShare.addEventListener('click', () => {
+      isExpanded = false;
+      expandedArea.classList.add('hidden');
+      expandedArea.classList.remove('flex');
+      pipArea.classList.remove('hidden');
+      chatContainer.classList.remove('h-1/3');
+      chatContainer.classList.add('flex-1');
     });
 
   </script>
