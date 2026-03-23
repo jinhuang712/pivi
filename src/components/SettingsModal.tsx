@@ -7,6 +7,8 @@ interface SettingsModalProps {
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState('audio');
+  const [roomCode, setRoomCode] = useState('A9B2K8');
+  const [isUnbanned, setIsUnbanned] = useState(false);
 
   // Handle Escape key to close
   useEffect(() => {
@@ -66,8 +68,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   <span className="text-sm text-gray-300 font-bold">Player B</span>
                   <span className="text-xs text-gray-500 font-mono">UUID: 1234-5678...</span>
                 </div>
-                <button className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-xs rounded text-white transition-colors">
-                  解除封禁
+                <button 
+                  onClick={() => setIsUnbanned(true)}
+                  disabled={isUnbanned}
+                  className={`px-3 py-1 text-xs rounded text-white transition-colors ${isUnbanned ? 'bg-gray-600 opacity-50 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600'}`}
+                >
+                  {isUnbanned ? '已解封' : '解除封禁'}
                 </button>
               </div>
               <div className="text-xs text-red-400 mt-1">封禁原因: 恶意刷屏</div>
@@ -81,8 +87,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             <div className="mt-4">
               <label className="block text-xs font-bold text-gray-400 mb-2">当前房间 Code</label>
               <div className="flex items-center space-x-2">
-                <input type="text" defaultValue="A9B2K8" className="bg-[#1e1f22] border border-gray-700 text-sm rounded p-2 text-white font-mono w-32 text-center" readOnly />
-                <button className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 rounded text-sm font-medium text-white">重新生成</button>
+                <input type="text" value={roomCode} className="bg-[#1e1f22] border border-gray-700 text-sm rounded p-2 text-white font-mono w-32 text-center" readOnly />
+                <button 
+                  onClick={() => setRoomCode(Math.random().toString(36).substring(2, 8).toUpperCase())}
+                  className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 rounded text-sm font-medium text-white"
+                >
+                  重新生成
+                </button>
               </div>
             </div>
           </div>
