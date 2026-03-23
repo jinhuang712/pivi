@@ -4,6 +4,7 @@ import Sidebar from "./components/Sidebar";
 import CodeInput from "./components/CodeInput";
 import ConfirmJoinModal from "./components/ConfirmJoinModal";
 import SettingsModal from "./components/SettingsModal";
+import MainArea from "./components/MainArea";
 
 function App() {
   const [appState, setAppState] = useState<'join' | 'confirm' | 'channel'>('join');
@@ -39,16 +40,8 @@ function App() {
       {/* 2. 主频道视图 */}
       {appState === 'channel' && (
         <>
-          <Sidebar roomName="周末电竞开黑房" />
-          <main className="flex-1 flex flex-col relative bg-[#313338] items-center justify-center text-gray-500">
-            <h1>右侧主交互区占位</h1>
-            <button 
-              onClick={() => setIsSettingsOpen(true)}
-              className="mt-4 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-sm transition-colors"
-            >
-              打开设置面板 (Demo)
-            </button>
-          </main>
+          <Sidebar roomName="周末电竞开黑房" onOpenSettings={() => setIsSettingsOpen(true)} />
+          <MainArea />
         </>
       )}
 

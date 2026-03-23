@@ -2,9 +2,10 @@ import React from 'react';
 
 interface SidebarProps {
   roomName: string;
+  onOpenSettings?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ roomName }) => {
+const Sidebar: React.FC<SidebarProps> = ({ roomName, onOpenSettings }) => {
   return (
     <aside className="w-64 bg-[#2b2d31] flex flex-col border-r border-[#1e1f22] h-full">
       {/* 房间头部 */}
@@ -29,7 +30,13 @@ const Sidebar: React.FC<SidebarProps> = ({ roomName }) => {
         <div className="flex space-x-2 text-gray-400">
           <button className="hover:text-white p-1 rounded hover:bg-gray-700" title="麦克风开关">🎤</button>
           <button className="hover:text-white p-1 rounded hover:bg-gray-700" title="扬声器开关">🎧</button>
-          <button className="hover:text-white p-1 rounded hover:bg-gray-700" title="设置">⚙️</button>
+          <button 
+            onClick={onOpenSettings}
+            className="hover:text-white p-1 rounded hover:bg-gray-700" 
+            title="设置"
+          >
+            ⚙️
+          </button>
         </div>
       </div>
     </aside>
