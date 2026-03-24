@@ -1,6 +1,7 @@
 pub mod signaling;
 pub mod discovery;
 pub mod ws_server;
+pub mod room_state;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]

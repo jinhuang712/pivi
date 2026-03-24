@@ -29,6 +29,14 @@
 - Session：peerId、mode(P2P/Relay)、latency、lossRate
 - BlacklistEntry：blockedMemberId、blockedAt、reason
 
+## 房间生命周期状态管理（Phase 3.4）
+
+- Runtime 在内存中持有 `RoomState`，由 `roomId`、`hostId`、`createdAt` 与 `members` 构成。
+- 房主创建房间时自动写入 Host 成员状态（role=Host, connState=Connected）。
+- 成员加入时执行去重检查，重复 UUID 直接拒绝并返回冲突错误。
+- 成员离开时从 `members` 映射移除；房主离开必须通过后续“房主迁移”流程，不允许直接删除 Host。
+- 连接状态变更（Connected/Disconnected）在内存中即时更新，为后续广播与超时清理提供基础状态。
+
 ## 可靠性策略
 
 - 心跳间隔与超时踢出
