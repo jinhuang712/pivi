@@ -10,8 +10,8 @@ describe('Sidebar Component', () => {
 
   it('should render the local control panel', () => {
     render(<Sidebar roomName="测试房间" />);
-    expect(screen.getByTitle('麦克风开关')).toBeInTheDocument();
-    expect(screen.getByTitle('扬声器开关')).toBeInTheDocument();
-    expect(screen.getByTitle('设置')).toBeInTheDocument();
+    expect(screen.getByText('HuangJin')).toBeInTheDocument();
+    expect(screen.queryByTitle('扬声器开关')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('设置')).not.toBeInTheDocument();
   });
 });

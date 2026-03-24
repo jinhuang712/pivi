@@ -10,7 +10,7 @@ function App() {
   const [appState, setAppState] = useState<'join' | 'confirm' | 'channel'>('join');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const handleCodeComplete = (code: string) => {
+  const handleCodeComplete = (_code: string) => {
     // roomCode logic is removed or handled elsewhere, simply set joined
     setAppState('confirm');
   };
@@ -39,8 +39,8 @@ function App() {
       {/* 2. 主频道视图 */}
       {appState === 'channel' && (
         <>
-          <Sidebar roomName="周末电竞开黑房" onOpenSettings={() => setIsSettingsOpen(true)} />
-          <MainArea />
+          <Sidebar roomName="周末电竞开黑房" />
+          <MainArea onOpenSettings={() => setIsSettingsOpen(true)} />
         </>
       )}
 

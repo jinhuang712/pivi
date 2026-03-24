@@ -3,10 +3,9 @@ import MemberItem, { Member } from './MemberItem';
 
 interface SidebarProps {
   roomName: string;
-  onOpenSettings?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ roomName, onOpenSettings }) => {
+const Sidebar: React.FC<SidebarProps> = ({ roomName }) => {
   // Mock data for members
   const [members, setMembers] = useState<Member[]>([
     {
@@ -81,9 +80,8 @@ const Sidebar: React.FC<SidebarProps> = ({ roomName, onOpenSettings }) => {
           </div>
         </div>
       </div>
-      
-      {/* 我的信息与设置 (原底部面板) */}
-      <div className="p-4 bg-[#232428] flex items-center justify-between border-b border-[#1e1f22] shadow-inner">
+
+      <div className="p-4 bg-[#232428] flex items-center justify-between border-b border-[#1e1f22]">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm">我</div>
           <div className="flex flex-col">
@@ -91,19 +89,8 @@ const Sidebar: React.FC<SidebarProps> = ({ roomName, onOpenSettings }) => {
             <span className="text-xs text-green-400 leading-tight flex items-center"><span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1 animate-pulse"></span>在线</span>
           </div>
         </div>
-        <div className="flex space-x-1 text-gray-400">
-          <button className="hover:text-white p-2 rounded hover:bg-gray-700 transition-colors" title="麦克风开关">🎤</button>
-          <button className="hover:text-white p-2 rounded hover:bg-gray-700 transition-colors" title="扬声器开关">🎧</button>
-          <button 
-            onClick={onOpenSettings}
-            className="hover:text-white p-2 rounded hover:bg-gray-700 transition-colors" 
-            title="设置"
-          >
-            ⚙️
-          </button>
-        </div>
       </div>
-
+      
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         <div className="px-2 py-1 mt-2 mb-1 text-xs font-bold text-gray-500">在线成员 - 2</div>
         {members.map(member => (
@@ -116,6 +103,7 @@ const Sidebar: React.FC<SidebarProps> = ({ roomName, onOpenSettings }) => {
           />
         ))}
       </div>
+
     </aside>
   );
 };

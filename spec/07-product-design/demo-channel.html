@@ -104,22 +104,13 @@
         </div>
       </div>
 
-      <!-- 我的信息与设置 (原底部面板) -->
-      <div class="p-4 bg-[#232428] flex items-center justify-between border-b border-[#1e1f22] shadow-inner">
+      <div class="p-4 bg-[#232428] flex items-center justify-between border-b border-[#1e1f22]">
         <div class="flex items-center space-x-3">
           <div class="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm">我</div>
           <div class="flex flex-col">
             <span class="text-sm font-bold leading-tight text-white mb-0.5">HuangJin</span>
             <span class="text-xs text-green-400 leading-tight flex items-center"><span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1 animate-pulse"></span>在线</span>
           </div>
-        </div>
-        <div class="flex space-x-1 text-gray-400">
-          <button id="btn-toggle-mic" class="hover:text-white p-2 rounded hover:bg-gray-700 transition-colors relative" title="麦克风开关">
-            🎤
-            <span id="mic-muted-badge" class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full hidden"></span>
-          </button>
-          <button id="btn-toggle-speaker" class="hover:text-white p-2 rounded hover:bg-gray-700 transition-colors" title="扬声器开关">🎧</button>
-          <button id="btn-open-settings" class="hover:text-white p-2 rounded hover:bg-gray-700 transition-colors" title="设置">⚙️</button>
         </div>
       </div>
 
@@ -155,26 +146,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 底部：本地全局控制面板 -->
-      <div class="h-14 bg-[#232428] flex items-center justify-between px-3">
-        <div class="flex items-center space-x-2">
-          <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-sm relative">
-            我
-            <!-- 麦克风关闭的小红标，初始隐藏 -->
-            <div id="mic-muted-badge" class="absolute -bottom-1 -right-1 bg-red-500 rounded-full w-4 h-4 flex items-center justify-center text-[8px] hidden">🔇</div>
-          </div>
-          <div class="flex flex-col">
-            <span class="text-xs font-bold leading-tight">HuangJin</span>
-            <span class="text-[10px] text-green-400 leading-tight" id="connection-status">在线</span>
-          </div>
-        </div>
-        <div class="flex space-x-1 text-gray-400">
-          <button id="btn-toggle-mic" class="hover:text-white p-1.5 rounded hover:bg-gray-700 transition-colors" title="麦克风开关">🎤</button>
-          <button id="btn-toggle-speaker" class="hover:text-white p-1.5 rounded hover:bg-gray-700 transition-colors" title="扬声器开关">🎧</button>
-          <button id="btn-open-settings" class="hover:text-white p-1.5 rounded hover:bg-gray-700 transition-colors" title="设置">⚙️</button>
-        </div>
-      </div>
     </aside>
 
     <!-- 右侧：主交互区 -->
@@ -192,19 +163,32 @@
         </div>
       </div>
 
+      <div id="expanded-share-area" class="hidden flex-1 bg-[#1e1f22] border-b border-[#2b2d31] flex-col items-center justify-center relative min-h-0">
+        <button id="btn-shrink-share" class="absolute top-4 right-4 bg-black bg-opacity-60 hover:bg-opacity-80 text-white px-3 py-1 rounded text-sm transition-all z-10">缩小至角落 ↘️</button>
+        <span class="text-6xl mb-4">🎮</span>
+        <span class="text-gray-400 font-medium">完整屏幕画面</span>
+      </div>
+
       <!-- 屏幕共享预览占位区 -->
       <div class="flex-1 flex items-center justify-center p-4">
         <div class="w-full h-full border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center text-gray-500 bg-[#2b2d31]">
           <span class="text-4xl mb-2">🎮</span>
           <p>当前无人共享屏幕</p>
-          <button id="btn-start-share" class="mt-4 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-sm font-medium transition-colors">
-            开始共享我的屏幕
-          </button>
         </div>
       </div>
 
+      <div id="pip-share-area" class="hidden absolute top-16 right-4 z-20 w-64 h-36 bg-black border border-gray-600 rounded-lg shadow-2xl overflow-hidden group cursor-pointer">
+        <div class="absolute inset-0 flex items-center justify-center blur-sm group-hover:blur-none transition-all duration-300">
+          <span class="text-4xl">🎮</span>
+        </div>
+        <div class="absolute inset-0 bg-black bg-opacity-40 group-hover:bg-opacity-10 transition-all flex items-center justify-center">
+          <span class="text-white text-sm font-bold bg-black bg-opacity-60 px-3 py-1 rounded opacity-100 group-hover:opacity-0 transition-opacity">点击放大画面</span>
+        </div>
+        <div class="absolute bottom-2 left-2 text-[10px] text-white bg-black bg-opacity-60 px-1.5 py-0.5 rounded">正在共享</div>
+      </div>
+
       <!-- 底部：聊天框 (Chatbox) -->
-      <div class="h-64 border-t border-[#2b2d31] flex flex-col">
+      <div id="chat-container" class="h-64 border-t border-[#2b2d31] flex flex-col">
         <!-- 消息列表 -->
         <div class="flex-1 p-4 overflow-y-auto space-y-4" id="chat-messages">
           <div class="flex space-x-3">
@@ -219,6 +203,31 @@
                 [图片预览]
               </div>
             </div>
+          </div>
+        </div>
+
+        <div class="px-4 pb-3">
+          <div class="mx-auto w-fit bg-[#1e1f22] border border-gray-700 rounded-full px-3 py-2 flex items-center space-x-3 shadow-lg">
+            <button id="btn-start-share" class="text-sm bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-full transition-colors flex items-center space-x-1">
+              <span>📺</span>
+              <span>开始共享</span>
+            </button>
+            <select id="share-quality" class="bg-[#2b2d31] text-xs text-gray-300 border border-gray-700 rounded-full px-2 py-1 outline-none cursor-pointer hidden">
+              <option value="720p">720p</option>
+              <option value="1080p" selected>1080p</option>
+              <option value="原画">原画</option>
+            </select>
+            <button id="btn-stop-share" class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-full transition-colors hidden">停止共享</button>
+            <div class="h-6 w-px bg-gray-700"></div>
+            <button id="btn-toggle-mic" class="p-2 rounded-full text-gray-300 hover:text-white transition-colors" title="麦克风开关">🎤</button>
+            <input id="mic-volume" type="range" min="0" max="100" value="100" class="w-24 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer" title="麦克风音量">
+            <span id="mic-volume-value" class="text-[11px] text-gray-400 font-mono w-8 text-right">100%</span>
+            <div class="h-6 w-px bg-gray-700"></div>
+            <button id="btn-toggle-speaker" class="p-2 rounded-full text-gray-300 hover:text-white transition-colors" title="扬声器开关">🎧</button>
+            <input id="speaker-volume" type="range" min="0" max="100" value="100" class="w-24 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer" title="扬声器音量">
+            <span id="speaker-volume-value" class="text-[11px] text-gray-400 font-mono w-8 text-right">100%</span>
+            <div class="h-6 w-px bg-gray-700"></div>
+            <button id="btn-open-settings" class="p-2 rounded-full text-gray-300 hover:text-white transition-colors" title="设置">⚙️</button>
           </div>
         </div>
         
@@ -432,42 +441,51 @@
     });
 
     // ----------------------------------------------------
-    // 3. 麦克风/扬声器/设置 交互逻辑
+    // 3. 中置控制条交互逻辑（共享/麦克风/扬声器/设置）
     // ----------------------------------------------------
     let micMuted = false;
     let speakerMuted = false;
-    
-    document.getElementById('btn-toggle-mic').addEventListener('click', (e) => {
+    const micToggleBtn = document.getElementById('btn-toggle-mic');
+    const micVolume = document.getElementById('mic-volume');
+    const micVolumeValue = document.getElementById('mic-volume-value');
+    const speakerToggleBtn = document.getElementById('btn-toggle-speaker');
+    const speakerVolume = document.getElementById('speaker-volume');
+    const speakerVolumeValue = document.getElementById('speaker-volume-value');
+
+    micToggleBtn.addEventListener('click', (e) => {
       micMuted = !micMuted;
       const btn = e.currentTarget;
-      const badge = document.getElementById('mic-muted-badge');
-      const indicator = document.getElementById('my-speaking-indicator');
-      
       if (micMuted) {
+        btn.innerText = '🎙️';
         btn.classList.add('text-red-400');
-        btn.classList.remove('text-gray-400');
-        badge.classList.remove('hidden');
-        indicator.classList.remove('animate-pulse', 'bg-green-500');
-        indicator.classList.add('bg-gray-600');
+        btn.classList.remove('text-gray-300');
       } else {
+        btn.innerText = '🎤';
         btn.classList.remove('text-red-400');
-        btn.classList.add('text-gray-400');
-        badge.classList.add('hidden');
-        indicator.classList.add('animate-pulse', 'bg-green-500');
-        indicator.classList.remove('bg-gray-600');
+        btn.classList.add('text-gray-300');
       }
     });
 
-    document.getElementById('btn-toggle-speaker').addEventListener('click', (e) => {
+    micVolume.addEventListener('input', (e) => {
+      micVolumeValue.innerText = `${e.target.value}%`;
+    });
+    
+    speakerToggleBtn.addEventListener('click', (e) => {
       speakerMuted = !speakerMuted;
       const btn = e.currentTarget;
       if (speakerMuted) {
+        btn.innerText = '🔇';
         btn.classList.add('text-red-400');
-        btn.classList.remove('text-gray-400');
+        btn.classList.remove('text-gray-300');
       } else {
+        btn.innerText = '🎧';
         btn.classList.remove('text-red-400');
-        btn.classList.add('text-gray-400');
+        btn.classList.add('text-gray-300');
       }
+    });
+
+    speakerVolume.addEventListener('input', (e) => {
+      speakerVolumeValue.innerText = `${e.target.value}%`;
     });
 
     // ----------------------------------------------------
@@ -578,37 +596,36 @@
 
     // 屏幕共享切换
     let isSharing = false;
-    let isExpanded = false;
-
     const btnStartShare = document.getElementById('btn-start-share');
-    const expandedArea = document.getElementById('expanded-share-area');
+    const btnStopShare = document.getElementById('btn-stop-share');
+    const shareQuality = document.getElementById('share-quality');
     const pipArea = document.getElementById('pip-share-area');
+    const expandedArea = document.getElementById('expanded-share-area');
     const chatContainer = document.getElementById('chat-container');
     const btnShrinkShare = document.getElementById('btn-shrink-share');
 
-    btnStartShare.addEventListener('click', (e) => {
-      isSharing = !isSharing;
-      if (isSharing) {
-        // Start sharing (default to PIP)
-        e.currentTarget.innerHTML = `<span>🛑</span><span>停止共享</span>`;
-        e.currentTarget.classList.replace('bg-indigo-500', 'bg-red-500');
-        e.currentTarget.classList.replace('hover:bg-indigo-600', 'hover:bg-red-600');
-        pipArea.classList.remove('hidden');
-      } else {
-        // Stop sharing
-        e.currentTarget.innerHTML = `<span>📺</span><span>开始共享</span>`;
-        e.currentTarget.classList.replace('bg-red-500', 'bg-indigo-500');
-        e.currentTarget.classList.replace('hover:bg-red-600', 'hover:bg-indigo-600');
-        pipArea.classList.add('hidden');
-        expandedArea.classList.add('hidden');
-        chatContainer.classList.remove('h-1/3');
-        chatContainer.classList.add('flex-1');
-        isExpanded = false;
-      }
+    btnStartShare.addEventListener('click', () => {
+      isSharing = true;
+      btnStartShare.classList.add('hidden');
+      btnStopShare.classList.remove('hidden');
+      shareQuality.classList.remove('hidden');
+      pipArea.classList.remove('hidden');
+    });
+
+    btnStopShare.addEventListener('click', () => {
+      isSharing = false;
+      btnStopShare.classList.add('hidden');
+      shareQuality.classList.add('hidden');
+      btnStartShare.classList.remove('hidden');
+      pipArea.classList.add('hidden');
+      expandedArea.classList.add('hidden');
+      expandedArea.classList.remove('flex');
+      chatContainer.classList.remove('h-1/3');
+      chatContainer.classList.add('flex-1');
     });
 
     pipArea.addEventListener('click', () => {
-      isExpanded = true;
+      if (!isSharing) return;
       pipArea.classList.add('hidden');
       expandedArea.classList.remove('hidden');
       expandedArea.classList.add('flex');
@@ -617,7 +634,6 @@
     });
 
     btnShrinkShare.addEventListener('click', () => {
-      isExpanded = false;
       expandedArea.classList.add('hidden');
       expandedArea.classList.remove('flex');
       pipArea.classList.remove('hidden');
