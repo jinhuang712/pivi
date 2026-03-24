@@ -4,9 +4,9 @@
 
 ## 📊 当前进度概览
 
-- **总体进度**：🟢 约 40% 
+- **总体进度**：🟢 约 42% 
 - **当前阶段**：Phase 3 (核心网络与房主运行环境 Host Runtime)
-- **最新交付**：进入 Phase 3，完成 Discovery Service（Code 映射）首版实现与对应测试用例定义。
+- **最新交付**：纯无云模式下完成 Discovery 映射与房主本地服务监听能力首版实现。
 
 ---
 
@@ -39,10 +39,10 @@
   - [x] 悬浮时的本地独立音量滑块与本地屏蔽(🔇)按钮。
   - [x] 房主右键菜单 (移交房主、全局闭麦、踢人、加入黑名单)。
 
-### Phase 3: 核心网络与房主运行环境 (Host Runtime) (🚧 10%)
+### Phase 3: 核心网络与房主运行环境 (Host Runtime) (🚧 20%)
 - [x] 3.1 **信令基础结构**：Rust `SignalingMessage` (JoinRoom, LeaveRoom, Mute 等) 及其 Serde 解析。
 - [x] 3.2 **发现服务 (Discovery Service)**：实现 6 位 Code 到具体 IP/Port 的映射与查询逻辑 (初期可使用轻量级云端或 Mock)。
-- [ ] 3.3 **WebSocket Server**：房主本地启动 WS 服务，监听指定端口。
+- [x] 3.3 **WebSocket Server**：房主本地启动 WS 服务，监听指定端口。
 - [ ] 3.4 **房间生命周期管理**：成员加入/离开的内存状态维护。
 - [ ] 3.5 **鉴权与安全拦截**：6位 Code 校验逻辑与 UUID 黑名单拦截机制。
 - [ ] 3.6 **信令广播机制**：`ROOM_STATE`, `MEMBER_JOINED`, `MEMBER_LEFT`, 状态同步广播。
@@ -77,3 +77,4 @@
 - **2026-03-24**: 完成主界面控制条改版为中置布局，并同步更新 `channel-prd.md`、`desktop-app-design.md`、`test-strategy.md` 与 HTML 原型。
 - **2026-03-24**: 完成中置控制条麦克风能力补齐（闭麦+输入音量）并同步更新 `channel-prd.md`、`audio-routing.md`、`test-strategy.md` 与 HTML 原型。
 - **2026-03-24**: 完成 Discovery Service 首版（Code 映射注册/查询/删除），并同步更新 `signaling-webrtc.md` 与 `test-host-runtime.md`。
+- **2026-03-24**: 在纯无云约束下完成房主本地服务端口监听首版，并补充无云发现约束与测试定义。

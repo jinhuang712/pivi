@@ -1,5 +1,6 @@
 pub mod signaling;
 pub mod discovery;
+pub mod ws_server;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]

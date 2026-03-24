@@ -9,13 +9,13 @@
 ```mermaid
 sequenceDiagram
     participant C1 as 成员 A (Client)
-    participant D as Discovery Service (云端轻量服务)
+    participant D as Local Discovery (LAN广播/本地缓存)
     participant H as 房主 Runtime (WebSocket)
     participant C2 as 成员 B (Client)
 
     %% 房间发现阶段 (6位Code)
-    C1->>D: HTTP GET /resolve?code=A9B2K8
-    D-->>C1: 返回 {roomName: "周末电竞开黑房", wsUrl: "ws://x.x.x.x:8080"}
+    C1->>D: resolve(code=A9B2K8)
+    D-->>C1: 返回 {roomName: "周末电竞开黑房", wsUrl: "ws://192.168.x.x:8080"}
     C1->>C1: UI 弹窗询问“是否加入：周末电竞开黑房？”
     C1->>C1: 用户点击“确认加入”
 
@@ -50,13 +50,14 @@ sequenceDiagram
 
 所有控制面信令均通过 JSON 格式在 WebSocket 通道中传输。
 
-## 3. 发现服务最小实现（Phase 3.2）
+## 3. 发现服务最小实现（Phase 3.2，无云）
 
-- **数据模型**：`code -> RoomEndpoint(roomName, host, port)` 的内存映射。
+- **数据模型**：`code -> RoomEndpoint(roomName, host, port)` 的进程内映射。
 - **写入能力**：房主创建房间时注册 6 位 Code，若同 Code 重复注册则覆盖旧值。
 - **读取能力**：成员加入房间前按 Code 解析房间端点，返回房间名与连接地址。
 - **删除能力**：房间销毁或房主迁移完成后移除旧映射。
 - **输入约束**：Code 必须满足 `6 位 + 字母数字`，查询时统一按大写归一化。
+- **部署约束**：不依赖中心服务器；当前阶段优先支持同局域网或已知可达地址场景。
 
 ## 4. 信令消息分类
 

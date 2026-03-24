@@ -27,6 +27,7 @@
 - WebSocket 鉴权与黑名单拦截。
 - 房间状态同步与成员管理。
 - 房主热迁移 (Host Migration) 状态机。
+- 纯无云场景下的本地发现映射与端口监听能力。
 
 ### 🎛️ [2. 客户端媒体流与音频控制测试用例](./test-media-routing.md)
 - Web Audio API `GainNode` 路由与本地音量调节。
