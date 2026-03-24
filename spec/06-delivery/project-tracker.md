@@ -4,9 +4,9 @@
 
 ## 📊 当前进度概览
 
-- **总体进度**：🟢 约 38% 
+- **总体进度**：🟢 约 40% 
 - **当前阶段**：Phase 3 (核心网络与房主运行环境 Host Runtime)
-- **最新交付**：补齐中置控制条中的麦克风开关与麦克风音量调节，并同步 PRD、技术与测试文档。
+- **最新交付**：进入 Phase 3，完成 Discovery Service（Code 映射）首版实现与对应测试用例定义。
 
 ---
 
@@ -41,7 +41,7 @@
 
 ### Phase 3: 核心网络与房主运行环境 (Host Runtime) (🚧 10%)
 - [x] 3.1 **信令基础结构**：Rust `SignalingMessage` (JoinRoom, LeaveRoom, Mute 等) 及其 Serde 解析。
-- [ ] 3.2 **发现服务 (Discovery Service)**：实现 6 位 Code 到具体 IP/Port 的映射与查询逻辑 (初期可使用轻量级云端或 Mock)。
+- [x] 3.2 **发现服务 (Discovery Service)**：实现 6 位 Code 到具体 IP/Port 的映射与查询逻辑 (初期可使用轻量级云端或 Mock)。
 - [ ] 3.3 **WebSocket Server**：房主本地启动 WS 服务，监听指定端口。
 - [ ] 3.4 **房间生命周期管理**：成员加入/离开的内存状态维护。
 - [ ] 3.5 **鉴权与安全拦截**：6位 Code 校验逻辑与 UUID 黑名单拦截机制。
@@ -76,3 +76,4 @@
 - **202x-xx-xx**: 完成 Phase 1 基础设施搭建，完成 Phase 2 侧边栏基础 UI，完成 Phase 3 信令结构雏形。
 - **2026-03-24**: 完成主界面控制条改版为中置布局，并同步更新 `channel-prd.md`、`desktop-app-design.md`、`test-strategy.md` 与 HTML 原型。
 - **2026-03-24**: 完成中置控制条麦克风能力补齐（闭麦+输入音量）并同步更新 `channel-prd.md`、`audio-routing.md`、`test-strategy.md` 与 HTML 原型。
+- **2026-03-24**: 完成 Discovery Service 首版（Code 映射注册/查询/删除），并同步更新 `signaling-webrtc.md` 与 `test-host-runtime.md`。

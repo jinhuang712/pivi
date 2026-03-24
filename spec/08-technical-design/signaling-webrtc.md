@@ -50,13 +50,23 @@ sequenceDiagram
 
 所有控制面信令均通过 JSON 格式在 WebSocket 通道中传输。
 
-### 2.1 客户端 -> 房主 (Client to Host)
+## 3. 发现服务最小实现（Phase 3.2）
+
+- **数据模型**：`code -> RoomEndpoint(roomName, host, port)` 的内存映射。
+- **写入能力**：房主创建房间时注册 6 位 Code，若同 Code 重复注册则覆盖旧值。
+- **读取能力**：成员加入房间前按 Code 解析房间端点，返回房间名与连接地址。
+- **删除能力**：房间销毁或房主迁移完成后移除旧映射。
+- **输入约束**：Code 必须满足 `6 位 + 字母数字`，查询时统一按大写归一化。
+
+## 4. 信令消息分类
+
+### 4.1 客户端 -> 房主 (Client to Host)
 - `JOIN_ROOM`: 发送客户端 UUID、昵称、以及用于加入房间的口令。
 - `LEAVE_ROOM`: 客户端主动离开。
 - `WEBRTC_OFFER` / `WEBRTC_ANSWER` / `ICE_CANDIDATE`: WebRTC 协商相关的透传信令，需包含 `target` (目标成员 UUID)。
 - `CHAT_MESSAGE`: 发送轻量级文本消息。
 
-### 2.2 房主 -> 客户端 (Host to Client)
+### 4.2 房主 -> 客户端 (Host to Client)
 - `ROOM_STATE`: 发送当前房间的完整成员列表与状态（仅在加入成功后下发一次）。
 - `MEMBER_JOINED` / `MEMBER_LEFT`: 广播成员变动。
 - `HOST_MUTE`: 广播某成员被房主全局闭麦的状态变更。
