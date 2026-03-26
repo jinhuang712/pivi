@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
-
-interface ChatMessage {
-  id: string;
-  sender: string;
-  time: string;
-  content: string;
-  isSelf: boolean;
-}
+import type { ChatMessage } from '../types/channel';
 
 interface MainAreaProps {
   onOpenSettings?: () => void;
+  currentUserName: string;
+  messages: ChatMessage[];
+  onSendMessage: (content: string) => void;
 }
 
-const MainArea: React.FC<MainAreaProps> = ({ onOpenSettings }) => {
+const MainArea: React.FC<MainAreaProps> = ({ onOpenSettings, currentUserName, messages, onSendMessage }) => {
   const [isSharing, setIsSharing] = useState(false);
   const [isExpandedShare, setIsExpandedShare] = useState(false);
   const [quality, setQuality] = useState('1080p');
@@ -22,28 +18,10 @@ const MainArea: React.FC<MainAreaProps> = ({ onOpenSettings }) => {
   const [speakerVolume, setSpeakerVolume] = useState(100);
   const [inputValue, setInputValue] = useState('');
   const [showError, setShowError] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      sender: 'Player A',
-      time: '14:32',
-      content: '刚打到的战利品看看！',
-      isSelf: false,
-    },
-  ]);
 
   const handleSend = () => {
     if (!inputValue.trim()) return;
-    
-    const newMsg: ChatMessage = {
-      id: Date.now().toString(),
-      sender: '我',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      content: inputValue,
-      isSelf: true,
-    };
-    
-    setMessages((prev) => [...prev, newMsg]);
+    onSendMessage(inputValue.trim());
     setInputValue('');
   };
 
@@ -123,6 +101,9 @@ const MainArea: React.FC<MainAreaProps> = ({ onOpenSettings }) => {
           )}
 
           <div className="flex-1 p-4 overflow-y-auto space-y-4" id="chat-messages">
+            {messages.length === 0 && (
+              <div className="text-sm text-gray-500">暂无消息，发送第一条消息开始聊天。</div>
+            )}
             {messages.map((msg) => (
               <div key={msg.id} className="flex space-x-3">
                 <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold ${msg.isSelf ? 'bg-blue-500' : 'bg-gray-500'}`}>
@@ -131,7 +112,7 @@ const MainArea: React.FC<MainAreaProps> = ({ onOpenSettings }) => {
                 <div>
                   <div className="flex items-baseline space-x-2">
                     <span className={`font-medium text-sm ${msg.isSelf ? 'text-blue-400' : 'text-gray-300'}`}>
-                      {msg.sender}
+                      {msg.isSelf ? currentUserName : msg.sender}
                     </span>
                     <span className="text-xs text-gray-500">{msg.time}</span>
                   </div>

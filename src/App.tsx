@@ -1,32 +1,142 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
 import CodeInput from "./components/CodeInput";
 import ConfirmJoinModal from "./components/ConfirmJoinModal";
 import SettingsModal from "./components/SettingsModal";
 import MainArea from "./components/MainArea";
+import type { JoinPreview, RoomMember, RoomSnapshot, ChatMessage } from "./types/channel";
+
+const ROOM_REGISTRY_KEY = 'lvc_room_registry_v1';
+
+const readRoomRegistry = (): RoomSnapshot[] => {
+  try {
+    const raw = localStorage.getItem(ROOM_REGISTRY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as RoomSnapshot[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch {
+    return [];
+  }
+};
+
+const writeRoomRegistry = (rooms: RoomSnapshot[]) => {
+  localStorage.setItem(ROOM_REGISTRY_KEY, JSON.stringify(rooms));
+};
+
+const makeRoomCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+
+const makeMemberId = () => `uuid-${crypto.randomUUID().slice(0, 8)}`;
 
 function App() {
   const [appState, setAppState] = useState<'join' | 'confirm' | 'channel'>('join');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [joinError, setJoinError] = useState('');
+  const [pendingJoin, setPendingJoin] = useState<JoinPreview | null>(null);
+  const [roomName, setRoomName] = useState('');
+  const [roomCode, setRoomCode] = useState('');
+  const [members, setMembers] = useState<RoomMember[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const currentUserName = useMemo(
+    () => localStorage.getItem('lvc_nickname') || 'HuangJin',
+    [],
+  );
+  const currentUserId = useMemo(() => {
+    const existing = localStorage.getItem('lvc_user_id');
+    if (existing) return existing;
+    const created = makeMemberId();
+    localStorage.setItem('lvc_user_id', created);
+    return created;
+  }, []);
 
-  const handleCodeComplete = (_code: string) => {
-    // roomCode logic is removed or handled elsewhere, simply set joined
+  const currentUserIsHost = members.find((m) => m.id === currentUserId)?.isHost ?? false;
+
+  const handleCreateRoom = () => {
+    const code = makeRoomCode();
+    const newRoomName = `${currentUserName} 的房间`;
+    const roomEntry: RoomSnapshot = {
+      roomCode: code,
+      roomName: newRoomName,
+      hostName: currentUserName,
+    };
+    const registry = readRoomRegistry();
+    writeRoomRegistry([roomEntry, ...registry.filter((r) => r.roomCode !== code)].slice(0, 20));
+    setRoomCode(code);
+    setRoomName(newRoomName);
+    setJoinError('');
+    setMembers([
+      {
+        id: currentUserId,
+        name: currentUserName,
+        isHost: true,
+        isSpeaking: false,
+        localMuted: false,
+        serverMuted: false,
+        volume: 100,
+      },
+    ]);
+    setMessages([]);
+    setAppState('channel');
+  };
+
+  const handleCodeComplete = (code: string) => {
+    const registry = readRoomRegistry();
+    const matched = registry.find((room) => room.roomCode === code.toUpperCase());
+    if (!matched) {
+      setJoinError('未找到该房间口令，请先创建房间或确认输入无误。');
+      setPendingJoin(null);
+      return;
+    }
+    setRoomCode(matched.roomCode);
+    setRoomName(matched.roomName);
+    setPendingJoin({
+      roomName: matched.roomName,
+      hostName: matched.hostName,
+      onlineCount: 1,
+    });
+    setJoinError('');
     setAppState('confirm');
+  };
+
+  const handleConfirmJoin = () => {
+    const hostName = pendingJoin?.hostName || 'Host';
+    setMembers([
+      {
+        id: 'host-runtime',
+        name: hostName,
+        isHost: true,
+        isSpeaking: false,
+        localMuted: false,
+        serverMuted: false,
+        volume: 100,
+      },
+      {
+        id: currentUserId,
+        name: currentUserName,
+        isHost: false,
+        isSpeaking: false,
+        localMuted: false,
+        serverMuted: false,
+        volume: 100,
+      },
+    ]);
+    setMessages([]);
+    setAppState('channel');
   };
 
   return (
     <div className="h-screen w-screen flex overflow-hidden font-sans bg-[#1e1f22] text-[#f3f4f6]">
-      {/* 1. 加入房间视图 */}
       {appState === 'join' && (
         <div className="flex-1 flex justify-center items-center">
           <div className="bg-[#313338] p-8 rounded-xl shadow-2xl w-[480px] flex flex-col items-center text-center">
             <h2 className="text-2xl font-bold mb-2">加入语音频道</h2>
             <p className="text-gray-400 text-sm mb-8">请输入 6 位房间口令 (字母与数字)</p>
             <CodeInput onComplete={handleCodeComplete} />
+            {joinError && <p className="text-red-400 text-sm mt-4">{joinError}</p>}
             <div className="w-full flex justify-between items-center mt-8">
               <button 
-                onClick={() => setAppState('channel')} 
+                onClick={handleCreateRoom} 
                 className="text-sm text-indigo-400 hover:underline"
               >
                 创建新房间
@@ -36,22 +146,49 @@ function App() {
         </div>
       )}
 
-      {/* 2. 主频道视图 */}
       {appState === 'channel' && (
         <>
-          <Sidebar roomName="周末电竞开黑房" />
-          <MainArea onOpenSettings={() => setIsSettingsOpen(true)} />
+          <Sidebar
+            roomName={roomName}
+            roomCode={roomCode}
+            currentUserName={currentUserName}
+            members={members}
+            isCurrentUserHost={currentUserIsHost}
+            onRegenerateCode={handleCreateRoom}
+            onLocalMuteToggle={(id: string) => {
+              setMembers((prev) =>
+                prev.map((member) => (member.id === id ? { ...member, localMuted: !member.localMuted } : member)),
+              );
+            }}
+            onVolumeChange={(id: string, volume: number) => {
+              setMembers((prev) => prev.map((member) => (member.id === id ? { ...member, volume } : member)));
+            }}
+          />
+          <MainArea
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            currentUserName={currentUserName}
+            messages={messages}
+            onSendMessage={(content: string) => {
+              const newMessage: ChatMessage = {
+                id: Date.now().toString(),
+                sender: currentUserName,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                content,
+                isSelf: true,
+              };
+              setMessages((prev) => [...prev, newMessage]);
+            }}
+          />
         </>
       )}
 
-      {/* 全局模态框 */}
       <ConfirmJoinModal 
         isOpen={appState === 'confirm'}
-        roomName="周末电竞开黑房"
-        onlineCount={3}
-        hostName="HuangJin"
+        roomName={pendingJoin?.roomName || roomName}
+        onlineCount={pendingJoin?.onlineCount || 1}
+        hostName={pendingJoin?.hostName || 'Host'}
         onCancel={() => setAppState('join')}
-        onConfirm={() => setAppState('channel')}
+        onConfirm={handleConfirmJoin}
       />
 
       <SettingsModal 

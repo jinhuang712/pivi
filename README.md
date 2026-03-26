@@ -9,7 +9,7 @@ Local Voice Chat 是一个面向电竞开黑场景的桌面语音应用项目，
 - 前端 UI 原型与核心交互：已完成主要页面和组件
 - Host Runtime 基础能力（Phase 3）：已完成（信令结构、发现映射、监听、房态、鉴权、广播）
 - WebRTC 协商骨架（Phase 4.1）：已完成（Offer/Answer/ICE 透传路由）
-- 本地设备采集（Phase 4.2）：进行中（设置页采集与设备同步已接入）
+- MVP 核心功能（Phase 1~5）：已完成（含信令、媒体、DataChannel、屏幕共享、房主移交与全局快捷键）
 
 详细进度请查看：
 - [spec/06-delivery/project-tracker.md](./spec/06-delivery/project-tracker.md)
@@ -60,15 +60,17 @@ Local Voice Chat 是一个面向电竞开黑场景的桌面语音应用项目，
 Rust 侧测试命令（环境需安装 Rust/Cargo）：
 - `cd src-tauri && cargo test`
 
-## 安装与打包（预留）
+## 安装与打包
 
 当前可用命令：
 - macOS 打包（`.app` + `.dmg`）：
   - `npm run tauri:build:macos`
+- Windows 打包（Windows 环境执行）：
+  - `npm run tauri:build:windows`
 
 详细交付说明：
 - [spec/06-delivery/macos-build.md](./spec/06-delivery/macos-build.md)
+- [spec/06-delivery/windows-build.md](./spec/06-delivery/windows-build.md)
 
 后续将在本 README 持续补充：
-- Windows 打包流程（`.exe`）
 - 常见故障排查与网络连通建议

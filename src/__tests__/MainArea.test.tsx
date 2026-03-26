@@ -1,9 +1,18 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import MainArea from '../components/MainArea';
+import type { ChatMessage } from '../types/channel';
 
 describe('MainArea Component', () => {
-  const renderMainArea = (onOpenSettings = vi.fn()) => render(<MainArea onOpenSettings={onOpenSettings} />);
+  const renderMainArea = (onOpenSettings = vi.fn(), messages: ChatMessage[] = []) =>
+    render(
+      <MainArea
+        onOpenSettings={onOpenSettings}
+        currentUserName="HuangJin"
+        messages={messages}
+        onSendMessage={vi.fn()}
+      />,
+    );
 
   it('should render the top navigation and network status', () => {
     renderMainArea();
@@ -27,7 +36,15 @@ describe('MainArea Component', () => {
   });
 
   it('should be able to type and send messages', () => {
-    renderMainArea();
+    const onSendMessage = vi.fn();
+    render(
+      <MainArea
+        onOpenSettings={vi.fn()}
+        currentUserName="HuangJin"
+        messages={[]}
+        onSendMessage={onSendMessage}
+      />,
+    );
     const input = screen.getByPlaceholderText('输入消息... (支持 Ctrl+V 粘贴截图)');
     
     fireEvent.change(input, { target: { value: 'Hello World' } });
@@ -37,7 +54,7 @@ describe('MainArea Component', () => {
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
     
     // Message should be added to the list and input cleared
-    expect(screen.getByText('Hello World')).toBeInTheDocument();
+    expect(onSendMessage).toHaveBeenCalledWith('Hello World');
     expect(input).toHaveValue('');
   });
 

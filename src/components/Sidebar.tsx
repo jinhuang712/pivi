@@ -1,46 +1,30 @@
-import React, { useState } from 'react';
+import React from 'react';
 import MemberItem, { Member } from './MemberItem';
 
 interface SidebarProps {
   roomName: string;
+  roomCode: string;
+  currentUserName: string;
+  members: Member[];
+  isCurrentUserHost: boolean;
+  onRegenerateCode: () => void;
+  onLocalMuteToggle: (id: string) => void;
+  onVolumeChange: (id: string, volume: number) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ roomName }) => {
-  // Mock data for members
-  const [members, setMembers] = useState<Member[]>([
-    {
-      id: 'me',
-      name: 'HuangJin',
-      isHost: true,
-      isSpeaking: true,
-      localMuted: false,
-      serverMuted: false,
-      volume: 100,
-    },
-    {
-      id: 'user-a',
-      name: 'Player A',
-      isHost: false,
-      isSpeaking: false,
-      localMuted: false,
-      serverMuted: false,
-      volume: 100,
-    }
-  ]);
-
-  const handleLocalMuteToggle = (id: string) => {
-    setMembers(prev => prev.map(m => m.id === id ? { ...m, localMuted: !m.localMuted } : m));
-  };
-
-  const handleVolumeChange = (id: string, volume: number) => {
-    setMembers(prev => prev.map(m => m.id === id ? { ...m, volume } : m));
-  };
-
-  const [roomCode, setRoomCode] = useState('A9B2K8');
-
+const Sidebar: React.FC<SidebarProps> = ({
+  roomName,
+  roomCode,
+  currentUserName,
+  members,
+  isCurrentUserHost,
+  onRegenerateCode,
+  onLocalMuteToggle,
+  onVolumeChange,
+}) => {
   const handleRegenerateCode = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setRoomCode(Math.random().toString(36).substring(2, 8).toUpperCase());
+    onRegenerateCode();
   };
 
   const handleCopyCode = (e: React.MouseEvent) => {
@@ -85,21 +69,21 @@ const Sidebar: React.FC<SidebarProps> = ({ roomName }) => {
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm">我</div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold leading-tight text-white mb-0.5">HuangJin</span>
+            <span className="text-sm font-bold leading-tight text-white mb-0.5">{currentUserName}</span>
             <span className="text-xs text-green-400 leading-tight flex items-center"><span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1 animate-pulse"></span>在线</span>
           </div>
         </div>
       </div>
       
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
-        <div className="px-2 py-1 mt-2 mb-1 text-xs font-bold text-gray-500">在线成员 - 2</div>
+        <div className="px-2 py-1 mt-2 mb-1 text-xs font-bold text-gray-500">在线成员 - {members.length}</div>
         {members.map(member => (
           <MemberItem 
             key={member.id} 
             member={member} 
-            isCurrentUserHost={true} 
-            onLocalMuteToggle={handleLocalMuteToggle}
-            onVolumeChange={handleVolumeChange}
+            isCurrentUserHost={isCurrentUserHost}
+            onLocalMuteToggle={onLocalMuteToggle}
+            onVolumeChange={onVolumeChange}
           />
         ))}
       </div>

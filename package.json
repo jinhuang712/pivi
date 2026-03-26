@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:build": "tauri build",
-    "tauri:build:macos": "tauri build --bundles app,dmg"
+    "tauri:build:macos": "tauri build --bundles app,dmg",
+    "tauri:build:windows": "tauri build --bundles nsis,msi"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
