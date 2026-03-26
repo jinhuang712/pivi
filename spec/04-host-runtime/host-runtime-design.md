@@ -53,6 +53,15 @@
   - `MEMBER_LEFT`：成员离开后广播离开成员 ID。
 - 广播载荷中的成员状态统一输出为字符串枚举（`Host/Member`, `Connected/Disconnected`），确保跨端反序列化一致性。
 
+## WebRTC 协商透传骨架（Phase 4.1）
+
+- Runtime 提供 `WebRtcRelayRouter`，仅负责透传 `OFFER` / `ANSWER` / `ICE_CANDIDATE`。
+- 透传前执行准入校验：
+  - `from` 必须在房间内。
+  - `target` 必须在房间内。
+  - `from` 与 `target` 不能相同。
+- 透传层不改写 SDP/Candidate 内容，仅做路由判定与转发目标确认。
+
 ## 可靠性策略
 
 - 心跳间隔与超时踢出

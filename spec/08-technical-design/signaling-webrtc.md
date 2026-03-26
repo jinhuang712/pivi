@@ -90,3 +90,12 @@ sequenceDiagram
   - `display_name`
   - `role` (`Host` | `Member`)
   - `conn_state` (`Connected` | `Disconnected`)
+
+## 7. WebRTC 透传路由规则（Phase 4.1）
+
+- Runtime 对 `WEBRTC_OFFER` / `WEBRTC_ANSWER` / `ICE_CANDIDATE` 执行统一路由判定。
+- 判定规则：
+  - `from` 必须存在于当前 `RoomState`。
+  - `target` 必须存在于当前 `RoomState`。
+  - `from != target`。
+- 通过判定后将原始信令原样转发到 `target`，不改写 `payload`。

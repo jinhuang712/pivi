@@ -113,6 +113,17 @@
   - B 收到该消息，且包含 `from: "uuid-a"`。
   - C **不应该**收到该消息。
 
+### [TC-HR-06A] WebRTC 透传路由拦截
+- **描述**：验证 WebRTC 透传在非法来源、非法目标、自指向目标时拒绝转发。
+- **测试步骤**：
+  1. 使用房间外成员作为 `from` 发起 `WEBRTC_OFFER`。
+  2. 使用房间外成员作为 `target` 发起 `WEBRTC_ANSWER`。
+  3. 使用 `from == target` 发起 `ICE_CANDIDATE`。
+- **预期结果**：
+  - 步骤 1：返回 `SourceNotInRoom`。
+  - 步骤 2：返回 `TargetNotInRoom`。
+  - 步骤 3：返回 `TargetIsSelf`。
+
 ---
 
 ## 3. 房主管理与热迁移模块

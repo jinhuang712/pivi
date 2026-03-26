@@ -28,6 +28,7 @@
 - 房间状态同步与成员管理。
 - RoomState 内存生命周期状态维护（加入/离开/连接态）。
 - ROOM_STATE / MEMBER_JOINED / MEMBER_LEFT 广播消息构建与载荷一致性。
+- WebRTC Offer / Answer / ICE 靶向透传路由与非法目标拦截。
 - 房主热迁移 (Host Migration) 状态机。
 - 纯无云场景下的本地发现映射与端口监听能力。
 
