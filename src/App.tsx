@@ -50,9 +50,10 @@ const buildMockInvitePayload = (): InviteCodePayload => {
 };
 
 function App() {
-  const [appState, setAppState] = useState<'join' | 'confirm' | 'channel'>('join');
+  const [appState, setAppState] = useState<'join' | 'preparing' | 'confirm' | 'channel'>('join');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [joinError, setJoinError] = useState('');
+  const [prepareHint, setPrepareHint] = useState('正在启动房主运行时...');
   const [pendingJoin, setPendingJoin] = useState<JoinPreview | null>(null);
   const [roomName, setRoomName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
@@ -73,9 +74,17 @@ function App() {
   const currentUserIsHost = members.find((m) => m.id === currentUserId)?.isHost ?? false;
 
   const handleCreateRoom = async () => {
+    setJoinError('');
+    setPrepareHint('正在启动房主运行时...');
+    setAppState('preparing');
+
     try {
-      const rawInviteCode = await generateInviteCode(buildMockInvitePayload());
+      const payload = buildMockInvitePayload();
+      const rawInviteCode = await generateInviteCode(payload);
+      setPrepareHint('正在校验邀请码可用性...');
       const formattedInviteCode = await prettifyInviteCode(rawInviteCode);
+      await parseInviteCode(formattedInviteCode, payload.expirySlot);
+      setPrepareHint('正在同步房间信息...');
       const newRoomName = `${currentUserName} 的房间`;
       const roomEntry: RoomSnapshot = {
         inviteCode: formattedInviteCode,
@@ -103,6 +112,7 @@ function App() {
       setMessages([]);
       setAppState('channel');
     } catch {
+      setAppState('join');
       setJoinError('邀请码生成失败，请稍后重试。');
     }
   };
@@ -178,6 +188,16 @@ function App() {
                 创建新房间
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {appState === 'preparing' && (
+        <div className="flex-1 flex justify-center items-center">
+          <div className="bg-[#313338] p-8 rounded-xl shadow-2xl w-[480px] flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-full border-4 border-indigo-400/30 border-t-indigo-400 animate-spin mb-6" />
+            <h2 className="text-2xl font-bold mb-2">正在准备房间</h2>
+            <p className="text-gray-400 text-sm">{prepareHint}</p>
           </div>
         </div>
       )}
