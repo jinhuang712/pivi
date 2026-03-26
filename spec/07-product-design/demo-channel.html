@@ -11,7 +11,7 @@
     
     /* Code Input Styles */
     .code-input {
-      width: 3rem;
+      width: 5.25rem;
       height: 4rem;
       text-align: center;
       font-size: 1.5rem;
@@ -38,21 +38,19 @@
   <div id="join-modal" class="fixed inset-0 bg-[#1e1f22] z-50 flex justify-center items-center">
     <div class="bg-[#313338] p-8 rounded-xl shadow-2xl w-[480px] flex flex-col items-center text-center">
       <h2 class="text-2xl font-bold mb-2">加入语音频道</h2>
-      <p class="text-gray-400 text-sm mb-8">请输入 6 位房间口令 (字母与数字)</p>
+      <p class="text-gray-400 text-sm mb-8">请输入 16 位邀请码（支持分组粘贴）</p>
       
       <div class="flex space-x-3 mb-8" id="code-inputs">
-        <input type="text" maxlength="1" class="code-input" autofocus />
-        <input type="text" maxlength="1" class="code-input" />
-        <input type="text" maxlength="1" class="code-input" />
-        <input type="text" maxlength="1" class="code-input" />
-        <input type="text" maxlength="1" class="code-input" />
-        <input type="text" maxlength="1" class="code-input" />
+        <input type="text" maxlength="4" class="code-input" autofocus />
+        <input type="text" maxlength="4" class="code-input" />
+        <input type="text" maxlength="4" class="code-input" />
+        <input type="text" maxlength="4" class="code-input" />
       </div>
 
       <div class="w-full flex justify-between items-center mt-4">
         <button class="text-sm text-indigo-400 hover:underline">创建新房间</button>
         <button id="btn-verify-code" class="px-6 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-md transition-colors opacity-50 cursor-not-allowed" disabled>
-          验证口令
+          验证邀请码
         </button>
       </div>
     </div>
@@ -95,10 +93,10 @@
         <div class="flex items-center justify-between bg-[#1e1f22] rounded-md px-3 py-2 border border-gray-700">
           <div class="flex items-center space-x-2">
             <span class="text-xs text-gray-400">Code:</span>
-            <span class="text-lg text-white font-mono tracking-wider font-bold">A9B2K8</span>
+            <span class="text-lg text-white font-mono tracking-wider font-bold">K7M2-9Q4P-T8XD-3F6N</span>
           </div>
           <div class="flex items-center space-x-2">
-            <button class="text-gray-400 hover:text-white transition-colors" title="复制口令">📋</button>
+            <button class="text-gray-400 hover:text-white transition-colors" title="复制邀请码">📋</button>
             <button class="text-indigo-400 hover:text-indigo-300 transition-colors" title="重新生成口令">🔄</button>
           </div>
         </div>
@@ -358,7 +356,7 @@
 
   <script>
     // ----------------------------------------------------
-    // 1. 验证码输入逻辑 (Join Modal)
+    // 1. 邀请码输入逻辑 (Join Modal)
     // ----------------------------------------------------
     const codeInputs = document.querySelectorAll('.code-input');
     const btnVerify = document.getElementById('btn-verify-code');
@@ -368,20 +366,16 @@
 
     codeInputs.forEach((input, index) => {
       input.addEventListener('input', (e) => {
-        // 转大写
-        e.target.value = e.target.value.toUpperCase();
+        e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
         
-        // 自动聚焦下一个
-        if (e.target.value.length === 1 && index < codeInputs.length - 1) {
+        if (e.target.value.length === 4 && index < codeInputs.length - 1) {
           codeInputs[index + 1].focus();
         }
         
-        // 检查是否全部填满
-        const allFilled = Array.from(codeInputs).every(i => i.value.length === 1);
+        const allFilled = Array.from(codeInputs).every(i => i.value.length === 4);
         if (allFilled) {
           btnVerify.disabled = false;
           btnVerify.classList.remove('opacity-50', 'cursor-not-allowed');
-          // 自动触发验证 (模拟体验)
           setTimeout(() => btnVerify.click(), 300);
         } else {
           btnVerify.disabled = true;
@@ -389,23 +383,22 @@
         }
       });
 
-      // 支持退格键回退
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
           codeInputs[index - 1].focus();
         }
       });
 
-      // 支持粘贴
       input.addEventListener('paste', (e) => {
         e.preventDefault();
-        const pasteData = e.clipboardData.getData('text').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
-        pasteData.split('').forEach((char, i) => {
-          if (index + i < codeInputs.length) {
-            codeInputs[index + i].value = char;
+        const pasteData = e.clipboardData.getData('text').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16);
+        for (let i = 0; i < codeInputs.length; i += 1) {
+          const chunk = pasteData.slice(i * 4, (i + 1) * 4);
+          if (chunk) {
+            codeInputs[i].value = chunk;
           }
-        });
-        if (pasteData.length === 6) {
+        }
+        if (pasteData.length === 16) {
           btnVerify.disabled = false;
           btnVerify.classList.remove('opacity-50', 'cursor-not-allowed');
           setTimeout(() => btnVerify.click(), 300);

@@ -4,17 +4,17 @@
 
 ## 1. 发现服务与会话建立时序图
 
-本时序图展示了成员如何通过 6 位 Code 解析房间信息（展示二次确认弹窗），进而加入房间并与其他成员通过信令交换建立 P2P WebRTC 通道的过程。
+本时序图展示了成员如何通过 **统一 16 位邀请码** 解析房间信息（展示二次确认弹窗），进而加入房间并与其他成员通过信令交换建立 P2P WebRTC 通道的过程。
 
 ```mermaid
 sequenceDiagram
     participant C1 as 成员 A (Client)
-    participant D as Local Discovery (LAN广播/本地缓存)
+    participant D as Invite Decoder
     participant H as 房主 Runtime (WebSocket)
     participant C2 as 成员 B (Client)
 
-    %% 房间发现阶段 (6位Code)
-    C1->>D: resolve(code=A9B2K8)
+    %% 房间发现阶段（统一 16位邀请码）
+    C1->>D: resolve(code=K7M2-9Q4P-T8XD-3F6N)
     D-->>C1: 返回 {roomName: "周末电竞开黑房", wsUrl: "ws://192.168.x.x:8080"}
     C1->>C1: UI 弹窗询问“是否加入：周末电竞开黑房？”
     C1->>C1: 用户点击“确认加入”
@@ -50,19 +50,19 @@ sequenceDiagram
 
 所有控制面信令均通过 JSON 格式在 WebSocket 通道中传输。
 
-## 3. 发现服务最小实现（Phase 3.2，无云）
+## 3. 邀请码最小实现（Phase 3.2，无云）
 
-- **数据模型**：`code -> RoomEndpoint(roomName, host, port)` 的进程内映射。
-- **写入能力**：房主创建房间时注册 6 位 Code，若同 Code 重复注册则覆盖旧值。
-- **读取能力**：成员加入房间前按 Code 解析房间端点，返回房间名与连接地址。
-- **删除能力**：房间销毁或房主迁移完成后移除旧映射。
-- **输入约束**：Code 必须满足 `6 位 + 字母数字`，查询时统一按大写归一化。
-- **部署约束**：不依赖中心服务器；当前阶段优先支持同局域网或已知可达地址场景。
+- **数据模型**：`InviteCode -> RoomEndpoint(roomName, host, port, scope, expiry)` 的自描述编码。
+- **写入能力**：房主创建房间并完成入口探测后，签发统一 16 位邀请码。
+- **读取能力**：成员加入房间前在本地解码邀请码，返回房间名与连接地址。
+- **删除能力**：房间销毁或房主迁移完成后使旧邀请码过期。
+- **输入约束**：`16 位 Base32 + TTL + Checksum`。
+- **部署约束**：不依赖中心服务器；当前阶段优先支持已知可达地址场景。
 
 ## 4. 信令消息分类
 
 ### 4.1 客户端 -> 房主 (Client to Host)
-- `JOIN_ROOM`: 发送客户端 UUID、昵称、以及用于加入房间的口令。
+- `JOIN_ROOM`: 发送客户端 UUID、昵称、以及用于加入房间的邀请码。
 - `LEAVE_ROOM`: 客户端主动离开。
 - `WEBRTC_OFFER` / `WEBRTC_ANSWER` / `ICE_CANDIDATE`: WebRTC 协商相关的透传信令，需包含 `target` (目标成员 UUID)。
 - `CHAT_MESSAGE`: 发送轻量级文本消息。
@@ -75,9 +75,11 @@ sequenceDiagram
 
 ## 5. JoinRoom 鉴权判定顺序（Phase 3.5）
 
-- Host 在收到 `JOIN_ROOM` 后先执行输入校验：`code` 必须是 6 位字母数字。
-- 校验通过后进入房间码比对：使用归一化后的大写 Code 与房间配置值比较。
-- 通过房间码比对后再执行黑名单拦截：命中则拒绝连接，不写入 `RoomState`。
+- Host 在收到 `JOIN_ROOM` 后先执行输入校验：
+  - `invite_code` 必须满足 16 位 Base32、校验通过且未过期。
+- 校验通过后进入房间入口比对：
+  - 使用解码出的入口与当前 Runtime 监听入口比对。
+- 通过入口比对后再执行黑名单拦截：命中则拒绝连接，不写入 `RoomState`。
 - 仅全部通过时才返回 `ROOM_STATE` 并触发后续成员广播流程。
 
 ## 6. 房间广播消息结构（Phase 3.6）

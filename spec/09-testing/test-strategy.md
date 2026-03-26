@@ -32,7 +32,13 @@
 - 房主热迁移 (Host Migration) 状态机（含超时失败与非法流转拦截）。
 - 纯无云场景下的本地发现映射与端口监听能力。
 
-### 🎛️ [2. 客户端媒体流与音频控制测试用例](./test-media-routing.md)
+### 🔑 [2. 统一邀请码测试用例](./test-invite-shortcode.md)
+- 统一 16 位邀请码的编码、解码、校验与过期判断。
+- Join UI 的单一邀请码输入、分组粘贴与错误提示。
+- 邀请码恢复入口后的直连、快速重试与错误提示。
+- 建房就绪探测、邀请码签发时机与直连失败后的 Relay 回退衔接。
+
+### 🎛️ [3. 客户端媒体流与音频控制测试用例](./test-media-routing.md)
 - Web Audio API `GainNode` 路由与本地音量调节。
 - 本地屏蔽 (Local Mute) 与房主全局闭麦 (Host Mute) 逻辑。
 - 麦克风/扬声器设备切换与 VAD/PTT 模式切换。
@@ -42,13 +48,13 @@
 - 屏幕共享流采集（`getDisplayMedia`）与 PeerConnection 推流替换。
 - 频道主页中置控制条的交互测试（共享状态切换、麦克风开关、麦克风音量滑杆、扬声器开关、扬声器音量滑杆、设置入口触发）。
 
-### 🖼️ [3. DataChannel 与大文件分片测试用例](./test-datachannel.md)
+### 🖼️ [4. DataChannel 与大文件分片测试用例](./test-datachannel.md)
 - 可靠 DataChannel 通道创建（ordered/protocol）与 readyState 门禁。
 - 大图片 (5MB) 的二进制分片 (Chunking) 算法。
 - 接收端的 ArrayBuffer 拼接与 Blob 生成。
 - 超大文件拦截与并发控制边界测试。
 
-### ⌨️ [4. 全局快捷键测试用例](./test-hotkeys.md)
+### ⌨️ [5. 全局快捷键测试用例](./test-hotkeys.md)
 - Tauri 全局快捷键合法性校验与运行时配置读写。
 - 重绑前 `unregister_all` 清理行为。
 - 解绑后状态清理与无残留验证。

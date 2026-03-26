@@ -27,25 +27,31 @@
 - 房间状态同步 (Room State Sync)。
 - 基于 Mesh 拓扑的 SDP Offer/Answer 交换与 ICE 穿透时序图。
 
-### 🎛️ [2. 音频路由与多层级控制引擎](./audio-routing.md)
+### 🔑 [2. 无云邀请短码协议](./invite-shortcode.md)
+**覆盖内容**：
+- 单一 16 位邀请码的接入策略。
+- 16 位邀请码的二进制布局、Base32 编码与校验规则。
+- 房主最优入口选择、建房稳态、快速入房与纯文本邀请码分享。
+
+### 🎛️ [3. 音频路由与多层级控制引擎](./audio-routing.md)
 **覆盖内容**：
 - Web Audio API `AudioContext` 拓扑图。
 - 解决本地独立音量调节的 `GainNode` 映射策略。
 - “本地屏蔽”与“房主全局强制闭麦”在实现层面的本质区别。
 
-### 🖼️ [3. 基于 DataChannel 的大文件/图片分片传输](./datachannel-transfer.md)
+### 🖼️ [4. 基于 DataChannel 的大文件/图片分片传输](./datachannel-transfer.md)
 **覆盖内容**：
 - 为什么必须使用 DataChannel 传输图片（防止信令阻塞）。
 - 超过 16KB/64KB 限制时的二进制 Chunking（分片）算法。
 - 接收端 ArrayBuffer 重组与 Blob 渲染时序。
 
-### 🔄 [4. 房主热迁移与安全边界防御](./host-migration-security.md)
+### 🔄 [5. 房主热迁移与安全边界防御](./host-migration-security.md)
 **覆盖内容**：
 - 无云架构下的难点：房主迁移状态机（Host Migration State Machine）。
 - 权限移交引发的“新进程拉起 -> 广播新地址 -> 全员断线重连”的平滑过渡机制。
 - WebSocket 连接频控（Rate Limiting）与基于 UUID 的黑名单在握手层的拦截逻辑。
 
-### ⌨️ [5. 全局快捷键绑定与运行时状态](./hotkeys-global.md)
+### ⌨️ [6. 全局快捷键绑定与运行时状态](./hotkeys-global.md)
 **覆盖内容**：
 - Tauri 全局快捷键注册与解绑命令设计。
 - PTT 与静音快捷键配置的状态管理。
