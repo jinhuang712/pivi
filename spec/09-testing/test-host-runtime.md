@@ -84,6 +84,17 @@
   - 步骤 4：`uuid-b` 的连接状态变为 `Disconnected`。
   - 步骤 5：成员从内存映射移除。
 
+### [TC-HR-04B] 3类广播消息构建正确性
+- **描述**：验证 Runtime 能正确构建 `ROOM_STATE`、`MEMBER_JOINED`、`MEMBER_LEFT` 载荷。
+- **测试步骤**：
+  1. 以房间内 Host + 1 名成员构建 `ROOM_STATE`。
+  2. 以成员快照构建 `MEMBER_JOINED`。
+  3. 以成员 ID 构建 `MEMBER_LEFT`。
+- **预期结果**：
+  - 步骤 1：`members` 数量与内存状态一致，`role/conn_state` 字段值合法。
+  - 步骤 2：`member_id` 与 `display_name` 与输入一致。
+  - 步骤 3：消息包含正确的 `member_id`。
+
 ### [TC-HR-05] 成员断线与清理
 - **描述**：成员异常断开 WS 连接时，Runtime 必须清理内存并广播离开事件。
 - **测试步骤**：

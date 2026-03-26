@@ -79,3 +79,14 @@ sequenceDiagram
 - 校验通过后进入房间码比对：使用归一化后的大写 Code 与房间配置值比较。
 - 通过房间码比对后再执行黑名单拦截：命中则拒绝连接，不写入 `RoomState`。
 - 仅全部通过时才返回 `ROOM_STATE` 并触发后续成员广播流程。
+
+## 6. 房间广播消息结构（Phase 3.6）
+
+- `ROOM_STATE`：`{ room_id, members[] }`，其中 `members` 为成员快照数组。
+- `MEMBER_JOINED`：`{ member }`，包含新成员快照。
+- `MEMBER_LEFT`：`{ member_id }`，用于触发客户端离房清理。
+- `member` 快照字段统一为：
+  - `member_id`
+  - `display_name`
+  - `role` (`Host` | `Member`)
+  - `conn_state` (`Connected` | `Disconnected`)

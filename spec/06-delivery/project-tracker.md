@@ -4,9 +4,9 @@
 
 ## 📊 当前进度概览
 
-- **总体进度**：🟢 约 46% 
+- **总体进度**：🟢 约 48% 
 - **当前阶段**：Phase 3 (核心网络与房主运行环境 Host Runtime)
-- **最新交付**：完成 3.5 鉴权与黑名单拦截首版（Code 校验、归一化匹配、黑名单门禁）。
+- **最新交付**：完成 3.6 广播消息构建首版（ROOM_STATE / MEMBER_JOINED / MEMBER_LEFT）。
 
 ---
 
@@ -39,13 +39,13 @@
   - [x] 悬浮时的本地独立音量滑块与本地屏蔽(🔇)按钮。
   - [x] 房主右键菜单 (移交房主、全局闭麦、踢人、加入黑名单)。
 
-### Phase 3: 核心网络与房主运行环境 (Host Runtime) (🚧 40%)
+### Phase 3: 核心网络与房主运行环境 (Host Runtime) (🚧 50%)
 - [x] 3.1 **信令基础结构**：Rust `SignalingMessage` (JoinRoom, LeaveRoom, Mute 等) 及其 Serde 解析。
 - [x] 3.2 **发现服务 (Discovery Service)**：实现 6 位 Code 到具体 IP/Port 的映射与查询逻辑 (初期可使用轻量级云端或 Mock)。
 - [x] 3.3 **WebSocket Server**：房主本地启动 WS 服务，监听指定端口。
 - [x] 3.4 **房间生命周期管理**：成员加入/离开的内存状态维护。
 - [x] 3.5 **鉴权与安全拦截**：6位 Code 校验逻辑与 UUID 黑名单拦截机制。
-- [ ] 3.6 **信令广播机制**：`ROOM_STATE`, `MEMBER_JOINED`, `MEMBER_LEFT`, 状态同步广播。
+- [x] 3.6 **信令广播机制**：`ROOM_STATE`, `MEMBER_JOINED`, `MEMBER_LEFT`, 状态同步广播。
 
 ### Phase 4: WebRTC 媒体路由与通信 (Pending 0%)
 - [ ] 4.1 **WebRTC 协商核心 (P2P Mesh)**：Offer / Answer / ICE Candidate 的信令透传与连接建立。
@@ -80,3 +80,4 @@
 - **2026-03-24**: 在纯无云约束下完成房主本地服务端口监听首版，并补充无云发现约束与测试定义。
 - **2026-03-24**: 完成 RoomState 内存管理首版实现（成员去重、离开清理、连接状态更新）并同步 Host Runtime 设计与测试清单。
 - **2026-03-24**: 完成 HostAuthGate 首版实现（房间码格式校验、大小写归一化比对、黑名单拦截）并同步技术与测试文档。
+- **2026-03-24**: 完成 RoomBroadcastBuilder 首版实现，统一 `ROOM_STATE`、`MEMBER_JOINED`、`MEMBER_LEFT` 的消息载荷结构。
