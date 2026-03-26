@@ -21,6 +21,12 @@ export interface PreparedRoomInvite {
   reusedLastSuccessfulPort: boolean;
 }
 
+export interface EndpointProbeResult {
+  reachable: boolean;
+  failureKind: string | null;
+  elapsedMs: number;
+}
+
 export const INVITE_CODE_LENGTH = 16;
 export const INVITE_CODE_GROUPS = 4;
 export const INVITE_CODE_GROUP_SIZE = 4;
@@ -42,3 +48,6 @@ export const parseInviteCode = (code: string, currentSlot = getCurrentInviteExpi
 
 export const prepareRoomInvite = (ipv4: string, expirySlot: number) =>
   invoke<PreparedRoomInvite>('prepare_room_invite', { ipv4, expirySlot });
+
+export const probeRoomEndpoint = (ipv4: string, port: number, timeoutMs: number) =>
+  invoke<EndpointProbeResult>('probe_room_endpoint', { ipv4, port, timeoutMs });

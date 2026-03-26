@@ -10,8 +10,8 @@ import {
   normalizeInviteCode,
   parseInviteCode,
   prepareRoomInvite,
-  prettifyInviteCode,
 } from "./lib/inviteCode";
+import { JoinRoomResolutionError, resolveJoinRoom } from "./lib/joinRoom";
 import type { JoinPreview, RoomMember, RoomSnapshot, ChatMessage } from "./types/channel";
 
 const ROOM_REGISTRY_KEY = 'lvc_room_registry_v1';
@@ -35,11 +35,10 @@ const writeRoomRegistry = (rooms: RoomSnapshot[]) => {
 const makeMemberId = () => `uuid-${crypto.randomUUID().slice(0, 8)}`;
 
 const buildMockInviteEndpoint = () => {
-  const lastOctet = 20 + Math.floor(Math.random() * 180);
   const expirySlot = (getCurrentInviteExpirySlot() + 12) % 1024;
 
   return {
-    ipv4: `192.168.31.${lastOctet}`,
+    ipv4: "127.0.0.1",
     expirySlot,
   };
 };
@@ -121,28 +120,27 @@ function App() {
 
   const handleCodeComplete = async (code: string) => {
     try {
-      const formattedInviteCode = await prettifyInviteCode(code);
-      await parseInviteCode(formattedInviteCode);
-      const registry = readRoomRegistry();
-      const matched = registry.find(
-        (room) => normalizeInviteCode(room.inviteCode) === normalizeInviteCode(formattedInviteCode),
-      );
-      if (!matched) {
-        setJoinError('未找到该邀请码对应的房间，请先创建房间或确认输入无误。');
-        setPendingJoin(null);
-        return;
-      }
-      setInviteCode(matched.inviteCode);
-      setRoomName(matched.roomName);
+      const resolvedJoin = await resolveJoinRoom(code, {
+        findRoomByInviteCode: (formattedInviteCode) =>
+          readRoomRegistry().find(
+            (room) => normalizeInviteCode(room.inviteCode) === normalizeInviteCode(formattedInviteCode),
+          ),
+      });
+      setInviteCode(resolvedJoin.room.inviteCode);
+      setRoomName(resolvedJoin.room.roomName);
       setPendingJoin({
-        roomName: matched.roomName,
-        hostName: matched.hostName,
+        roomName: resolvedJoin.room.roomName,
+        hostName: resolvedJoin.room.hostName,
         onlineCount: 1,
       });
       setJoinError('');
       setAppState('confirm');
-    } catch {
-      setJoinError('邀请码无效或已过期，请确认输入无误。');
+    } catch (error) {
+      setJoinError(
+        error instanceof JoinRoomResolutionError
+          ? error.message
+          : '加入房间失败，请稍后重试。',
+      );
       setPendingJoin(null);
     }
   };

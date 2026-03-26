@@ -8,6 +8,11 @@ const inviteCodeMocks = vi.hoisted(() => ({
     port: 7788,
     reusedLastSuccessfulPort: false,
   })),
+  probeRoomEndpoint: vi.fn(async (): Promise<{ reachable: boolean; failureKind: string | null; elapsedMs: number }> => ({
+    reachable: true,
+    failureKind: null,
+    elapsedMs: 10,
+  })),
   prettifyInviteCode: vi.fn(async (code: string) => {
     const normalized = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
     return normalized.match(/.{1,4}/g)?.join('-') ?? normalized;
@@ -27,6 +32,7 @@ vi.mock('../lib/inviteCode', async (importOriginal) => {
   return {
     ...actual,
     prepareRoomInvite: inviteCodeMocks.prepareRoomInvite,
+    probeRoomEndpoint: inviteCodeMocks.probeRoomEndpoint,
     prettifyInviteCode: inviteCodeMocks.prettifyInviteCode,
     parseInviteCode: inviteCodeMocks.parseInviteCode,
     getCurrentInviteExpirySlot: () => 500,
@@ -40,6 +46,11 @@ describe('App Phase 7 invite flow', () => {
       inviteCode: 'AB12-CD34-EF56-GH78',
       port: 7788,
       reusedLastSuccessfulPort: false,
+    }));
+    inviteCodeMocks.probeRoomEndpoint.mockImplementation(async (): Promise<{ reachable: boolean; failureKind: string | null; elapsedMs: number }> => ({
+      reachable: true,
+      failureKind: null,
+      elapsedMs: 10,
     }));
     inviteCodeMocks.prettifyInviteCode.mockImplementation(async (code: string) => {
       const normalized = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -96,6 +107,32 @@ describe('App Phase 7 invite flow', () => {
       expect(screen.getByText('邀请码生成失败，请稍后重试。')).toBeInTheDocument();
     });
     expect(screen.getByText('加入语音频道')).toBeInTheDocument();
+  });
+
+  it('shows endpoint unreachable error after probe retries fail', async () => {
+    const firstRender = render(<App />);
+
+    fireEvent.click(screen.getByText('创建新房间'));
+
+    await waitFor(() => {
+      expect(screen.getByText('AB12-CD34-EF56-GH78')).toBeInTheDocument();
+    });
+
+    firstRender.unmount();
+    inviteCodeMocks.probeRoomEndpoint.mockImplementation(async () => ({
+      reachable: false,
+      failureKind: 'timeout' as string | null,
+      elapsedMs: 100,
+    }));
+    render(<App />);
+    const inputs = screen.getAllByRole('textbox');
+    fireEvent.paste(inputs[0], {
+      clipboardData: { getData: () => 'ab12-cd34-ef56-gh78' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('房主入口不可达，请检查网络或防火墙设置。')).toBeInTheDocument();
+    });
   });
 
   it('joins with a 16-character invite code', async () => {

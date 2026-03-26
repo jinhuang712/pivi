@@ -20,6 +20,7 @@ pub enum RoomPreparationError {
 
 pub struct RoomPreparationState {
     port_pool: Vec<u16>,
+    active_server: Mutex<Option<WebSocketServer>>,
     last_successful_port: Mutex<Option<u16>>,
 }
 
@@ -27,36 +28,23 @@ impl RoomPreparationState {
     pub fn new(port_pool: Vec<u16>) -> Self {
         Self {
             port_pool,
+            active_server: Mutex::new(None),
             last_successful_port: Mutex::new(None),
         }
     }
 
     pub fn prepare_room_invite(&self, ipv4: Ipv4Addr, expiry_slot: u16) -> Result<PreparedRoomInvite, RoomPreparationError> {
         let last_successful_port = *self.last_successful_port.lock().unwrap();
-        let mut reused_last_successful_port = false;
-
-        let port = if let Some(port) = last_successful_port {
-            if is_port_available(port) {
-                reused_last_successful_port = true;
-                port
-            } else {
-                self.port_pool
-                    .iter()
-                    .copied()
-                    .find(|candidate| is_port_available(*candidate))
-                    .unwrap_or_else(choose_ephemeral_port)
-            }
-        } else {
-            self.port_pool
-                .iter()
-                .copied()
-                .find(|candidate| is_port_available(*candidate))
-                .unwrap_or_else(choose_ephemeral_port)
-        };
+        let (server, reused_last_successful_port) = self.bind_server(last_successful_port);
+        let port = server.local_addr().port();
 
         {
             let mut last = self.last_successful_port.lock().unwrap();
             *last = Some(port);
+        }
+        {
+            let mut active_server = self.active_server.lock().unwrap();
+            *active_server = Some(server);
         }
 
         let invite_code = format_invite_code(
@@ -77,22 +65,35 @@ impl RoomPreparationState {
             reused_last_successful_port,
         })
     }
+
+    fn bind_server(&self, last_successful_port: Option<u16>) -> (WebSocketServer, bool) {
+        if let Some(port) = last_successful_port {
+            if let Ok(server) = WebSocketServer::bind("127.0.0.1", port) {
+                return (server, true);
+            }
+        }
+
+        for candidate in self.port_pool.iter().copied() {
+            if Some(candidate) == last_successful_port {
+                continue;
+            }
+
+            if let Ok(server) = WebSocketServer::bind("127.0.0.1", candidate) {
+                return (server, false);
+            }
+        }
+
+        (
+            WebSocketServer::bind("127.0.0.1", 0).expect("failed to bind fallback ephemeral port"),
+            false,
+        )
+    }
 }
 
 impl Default for RoomPreparationState {
     fn default() -> Self {
         Self::new(DEFAULT_PORT_POOL.to_vec())
     }
-}
-
-fn is_port_available(port: u16) -> bool {
-    WebSocketServer::bind("127.0.0.1", port).is_ok()
-}
-
-fn choose_ephemeral_port() -> u16 {
-    WebSocketServer::bind("127.0.0.1", 0)
-        .map(|server| server.local_addr().port())
-        .unwrap_or(0)
 }
 
 #[cfg(test)]

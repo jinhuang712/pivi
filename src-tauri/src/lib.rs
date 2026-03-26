@@ -3,6 +3,7 @@ pub mod discovery;
 pub mod ws_server;
 pub mod room_state;
 pub mod auth;
+pub mod endpoint_probe;
 pub mod invite_code;
 pub mod room_preparation;
 pub mod room_broadcast;
@@ -15,6 +16,7 @@ use invite_code::{
     decode_invite_code, encode_invite_code, format_invite_code, InviteCodePayload, InviteEndpointScope,
     InviteJoinMode,
 };
+use endpoint_probe::probe_endpoint;
 use room_preparation::RoomPreparationState;
 use serde::{Deserialize, Serialize};
 
@@ -34,6 +36,14 @@ struct PreparedRoomInviteDto {
     invite_code: String,
     port: u16,
     reused_last_successful_port: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EndpointProbeResultDto {
+    reachable: bool,
+    failure_kind: Option<String>,
+    elapsed_ms: u64,
 }
 
 impl TryFrom<InviteCodePayloadDto> for InviteCodePayload {
@@ -127,6 +137,20 @@ fn prepare_room_invite(
         .map_err(|err| format!("{err:?}"))
 }
 
+#[tauri::command]
+fn probe_room_endpoint(ipv4: String, port: u16, timeout_ms: u64) -> Result<EndpointProbeResultDto, String> {
+    let ipv4 = ipv4
+        .parse()
+        .map_err(|_| format!("invalid ipv4 address: {ipv4}"))?;
+    let result = probe_endpoint(ipv4, port, timeout_ms);
+
+    Ok(EndpointProbeResultDto {
+        reachable: result.reachable,
+        failure_kind: result.failure_kind.map(str::to_string),
+        elapsed_ms: result.elapsed_ms,
+    })
+}
+
 fn parse_endpoint_scope(value: &str) -> Result<InviteEndpointScope, String> {
     match value {
         "private-lan-ipv4" => Ok(InviteEndpointScope::PrivateLanIpv4),
@@ -174,7 +198,8 @@ pub fn run() {
             generate_invite_code,
             prettify_invite_code,
             parse_invite_code,
-            prepare_room_invite
+            prepare_room_invite,
+            probe_room_endpoint
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
