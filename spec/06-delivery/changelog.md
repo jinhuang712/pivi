@@ -22,3 +22,5 @@
 - **2026-03-26**: 完成全局快捷键骨架（Tauri 命令、`global-shortcut` 注册/解绑、运行时状态存储与校验）并补充测试文档。
 - **2026-03-26**: 完成 macOS 打包流程落地（`tauri:build:macos` 脚本、`.app/.dmg` 产物验证、交付文档补齐）。
 - **2026-03-26**: 完成 Windows 打包流程落地（`tauri:build:windows` 脚本、`windows-build.md`、CI workflow 产物上传）。
+- **2026-03-26**: 完成应用图标统一替换，基于 `logo/logo.jpg` 重建并覆盖 Tauri 全平台图标资产（icns/ico/png/Appx/Android/iOS）。
+- **2026-03-26**: 完成主区控制条交互优化（音量默认显示数字，悬浮弹出竖向调节条）并将默认窗口扩展为 `1320x760`。

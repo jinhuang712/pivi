@@ -123,11 +123,11 @@ const MainArea: React.FC<MainAreaProps> = ({ onOpenSettings, currentUserName, me
           </div>
 
           <div className="px-4 pb-3">
-            <div className="mx-auto w-fit bg-[#1e1f22] border border-gray-700 rounded-full px-3 py-2 flex items-center space-x-3 shadow-lg">
+            <div className="mx-auto max-w-full bg-[#1e1f22] border border-gray-700 rounded-full px-3 py-2 flex items-center gap-3 shadow-lg">
               {!isSharing ? (
                 <button 
                   onClick={() => setIsSharing(true)}
-                  className="text-sm bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-full transition-colors flex items-center space-x-1"
+                  className="text-sm bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-1.5 rounded-full transition-colors flex items-center space-x-1 whitespace-nowrap flex-shrink-0"
                 >
                   <span>📺</span>
                   <span>开始共享</span>
@@ -137,7 +137,7 @@ const MainArea: React.FC<MainAreaProps> = ({ onOpenSettings, currentUserName, me
                   <select 
                     value={quality} 
                     onChange={(e) => setQuality(e.target.value)}
-                    className="bg-[#2b2d31] text-xs text-gray-300 border border-gray-700 rounded-full px-2 py-1 outline-none cursor-pointer"
+                    className="bg-[#2b2d31] text-xs text-gray-300 border border-gray-700 rounded-full px-2 py-1 outline-none cursor-pointer whitespace-nowrap flex-shrink-0"
                   >
                     <option value="720p">720p</option>
                     <option value="1080p">1080p</option>
@@ -145,7 +145,7 @@ const MainArea: React.FC<MainAreaProps> = ({ onOpenSettings, currentUserName, me
                   </select>
                   <button 
                     onClick={() => { setIsSharing(false); setIsExpandedShare(false); }}
-                    className="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-full transition-colors"
+                    className="text-sm bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-full transition-colors whitespace-nowrap flex-shrink-0"
                   >
                     停止共享
                   </button>
@@ -153,41 +153,53 @@ const MainArea: React.FC<MainAreaProps> = ({ onOpenSettings, currentUserName, me
               )}
 
               <div className="h-6 w-px bg-gray-700" />
-              <button
-                onClick={handleMicToggle}
-                className={`p-2 rounded-full transition-colors ${isMicMuted ? 'text-red-400 hover:text-red-300' : 'text-gray-300 hover:text-white'}`}
-                title="麦克风开关"
-              >
-                {isMicMuted ? '🎙️' : '🎤'}
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={micVolume}
-                onChange={(e) => setMicVolume(parseInt(e.target.value, 10))}
-                className="w-24 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                title="麦克风音量"
-              />
-              <span className="text-[11px] text-gray-400 font-mono w-8 text-right">{micVolume}%</span>
+              <div className="relative group flex items-center gap-1.5">
+                <button
+                  onClick={handleMicToggle}
+                  className={`p-2 rounded-full transition-colors ${isMicMuted ? 'text-red-400 hover:text-red-300' : 'text-gray-300 hover:text-white'}`}
+                  title="麦克风开关"
+                >
+                  {isMicMuted ? '🎙️' : '🎤'}
+                </button>
+                <span className="text-xs text-gray-300 font-mono w-9 text-right">{micVolume}%</span>
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-10 hidden group-hover:flex bg-[#111318] border border-gray-700 rounded-lg px-2 py-3 shadow-xl">
+                  <div className="h-24 w-8 flex items-center justify-center">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={micVolume}
+                      onChange={(e) => setMicVolume(parseInt(e.target.value, 10))}
+                      className="w-24 h-1 -rotate-90 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                      title="麦克风音量"
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="h-6 w-px bg-gray-700" />
-              <button
-                onClick={handleSpeakerToggle}
-                className={`p-2 rounded-full transition-colors ${isSpeakerMuted ? 'text-red-400 hover:text-red-300' : 'text-gray-300 hover:text-white'}`}
-                title="扬声器开关"
-              >
-                {isSpeakerMuted ? '🔇' : '🎧'}
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={speakerVolume}
-                onChange={(e) => setSpeakerVolume(parseInt(e.target.value, 10))}
-                className="w-24 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                title="扬声器音量"
-              />
-              <span className="text-[11px] text-gray-400 font-mono w-8 text-right">{speakerVolume}%</span>
+              <div className="relative group flex items-center gap-1.5">
+                <button
+                  onClick={handleSpeakerToggle}
+                  className={`p-2 rounded-full transition-colors ${isSpeakerMuted ? 'text-red-400 hover:text-red-300' : 'text-gray-300 hover:text-white'}`}
+                  title="扬声器开关"
+                >
+                  {isSpeakerMuted ? '🔇' : '🎧'}
+                </button>
+                <span className="text-xs text-gray-300 font-mono w-9 text-right">{speakerVolume}%</span>
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-10 hidden group-hover:flex bg-[#111318] border border-gray-700 rounded-lg px-2 py-3 shadow-xl">
+                  <div className="h-24 w-8 flex items-center justify-center">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={speakerVolume}
+                      onChange={(e) => setSpeakerVolume(parseInt(e.target.value, 10))}
+                      className="w-24 h-1 -rotate-90 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                      title="扬声器音量"
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="h-6 w-px bg-gray-700" />
               <button 
                 onClick={onOpenSettings}
