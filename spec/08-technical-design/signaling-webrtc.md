@@ -72,3 +72,10 @@ sequenceDiagram
 - `MEMBER_JOINED` / `MEMBER_LEFT`: 广播成员变动。
 - `HOST_MUTE`: 广播某成员被房主全局闭麦的状态变更。
 - `MIGRATE`: 房主迁移指令，要求全体重连至新地址。
+
+## 5. JoinRoom 鉴权判定顺序（Phase 3.5）
+
+- Host 在收到 `JOIN_ROOM` 后先执行输入校验：`code` 必须是 6 位字母数字。
+- 校验通过后进入房间码比对：使用归一化后的大写 Code 与房间配置值比较。
+- 通过房间码比对后再执行黑名单拦截：命中则拒绝连接，不写入 `RoomState`。
+- 仅全部通过时才返回 `ROOM_STATE` 并触发后续成员广播流程。
