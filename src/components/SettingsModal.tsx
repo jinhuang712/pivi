@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -10,11 +10,66 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [isUnbanned, setIsUnbanned] = useState(false);
   const [nickname, setNickname] = useState('HuangJin');
   const uuid = 'user-uuid-1234-5678';
+  const localMicStreamRef = useRef<MediaStream | null>(null);
+  const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([]);
+  const [audioOutputDevices, setAudioOutputDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedInputDevice, setSelectedInputDevice] = useState('');
+  const [selectedOutputDevice, setSelectedOutputDevice] = useState('');
+  const [micCaptureState, setMicCaptureState] = useState<'idle' | 'capturing' | 'error'>('idle');
+  const [micError, setMicError] = useState('');
   
   // Hotkey states
   const [pttHotkey, setPttHotkey] = useState('V');
   const [muteHotkey, setMuteHotkey] = useState('M');
   const [isRecordingHotkey, setIsRecordingHotkey] = useState<'ptt' | 'mute' | null>(null);
+
+  const stopMicCapture = () => {
+    if (localMicStreamRef.current) {
+      localMicStreamRef.current.getTracks().forEach((track) => track.stop());
+      localMicStreamRef.current = null;
+    }
+    setMicCaptureState('idle');
+  };
+
+  const syncAudioDevices = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      return;
+    }
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const inputs = devices.filter((d) => d.kind === 'audioinput');
+    const outputs = devices.filter((d) => d.kind === 'audiooutput');
+    setAudioInputDevices(inputs);
+    setAudioOutputDevices(outputs);
+    if (!selectedInputDevice && inputs.length > 0) {
+      setSelectedInputDevice(inputs[0].deviceId);
+    }
+    if (!selectedOutputDevice && outputs.length > 0) {
+      setSelectedOutputDevice(outputs[0].deviceId);
+    }
+  };
+
+  const startMicCapture = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setMicCaptureState('error');
+      setMicError('当前环境不支持麦克风采集');
+      return;
+    }
+    try {
+      stopMicCapture();
+      const constraints: MediaStreamConstraints = {
+        audio: selectedInputDevice ? { deviceId: { exact: selectedInputDevice } } : true,
+        video: false,
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      localMicStreamRef.current = stream;
+      setMicCaptureState('capturing');
+      setMicError('');
+      await syncAudioDevices();
+    } catch (error) {
+      setMicCaptureState('error');
+      setMicError(error instanceof Error ? error.message : '麦克风采集失败');
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -45,6 +100,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose, isRecordingHotkey]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      stopMicCapture();
+      return;
+    }
+    syncAudioDevices();
+    const mediaDevices = navigator.mediaDevices;
+    if (!mediaDevices || !mediaDevices.addEventListener) {
+      return;
+    }
+    const handleDeviceChange = () => {
+      void syncAudioDevices();
+    };
+    mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    return () => {
+      mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+      stopMicCapture();
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const renderTabContent = () => {
@@ -55,17 +130,57 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             <h1 className="text-xl font-bold mb-6 text-white">语音与设备</h1>
             <div className="mb-6">
               <label className="block text-xs font-bold text-gray-400 mb-2">输入设备 (麦克风)</label>
-              <select className="w-full bg-[#1e1f22] border border-gray-700 text-sm rounded p-2 text-gray-200 focus:outline-none focus:border-indigo-500 cursor-pointer">
-                <option>Default - MacBook Pro Microphone</option>
-                <option>External USB Mic</option>
+              <select
+                value={selectedInputDevice}
+                onChange={(e) => setSelectedInputDevice(e.target.value)}
+                className="w-full bg-[#1e1f22] border border-gray-700 text-sm rounded p-2 text-gray-200 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              >
+                {audioInputDevices.length === 0 && (
+                  <option value="">Default - System Microphone</option>
+                )}
+                {audioInputDevices.map((device) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {device.label || `Microphone ${device.deviceId.slice(0, 6)}`}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="mb-6">
               <label className="block text-xs font-bold text-gray-400 mb-2">输出设备 (扬声器)</label>
-              <select className="w-full bg-[#1e1f22] border border-gray-700 text-sm rounded p-2 text-gray-200 focus:outline-none focus:border-indigo-500 cursor-pointer">
-                <option>Default - MacBook Pro Speakers</option>
-                <option>AirPods Pro</option>
+              <select
+                value={selectedOutputDevice}
+                onChange={(e) => setSelectedOutputDevice(e.target.value)}
+                className="w-full bg-[#1e1f22] border border-gray-700 text-sm rounded p-2 text-gray-200 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              >
+                {audioOutputDevices.length === 0 && (
+                  <option value="">Default - System Speaker</option>
+                )}
+                {audioOutputDevices.map((device) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {device.label || `Speaker ${device.deviceId.slice(0, 6)}`}
+                  </option>
+                ))}
               </select>
+            </div>
+            <div className="mb-6">
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => void startMicCapture()}
+                  className="px-3 py-1.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold transition-colors"
+                >
+                  开始麦克风采集
+                </button>
+                <button
+                  onClick={stopMicCapture}
+                  className="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold transition-colors"
+                >
+                  停止采集
+                </button>
+                <span className={`text-xs font-bold ${micCaptureState === 'capturing' ? 'text-green-400' : micCaptureState === 'error' ? 'text-red-400' : 'text-gray-400'}`}>
+                  {micCaptureState === 'capturing' ? '采集中' : micCaptureState === 'error' ? '采集失败' : '未采集'}
+                </span>
+              </div>
+              {micError && <p className="text-xs text-red-400 mt-2">{micError}</p>}
             </div>
             <div className="my-6 border-t border-gray-700"></div>
             <h2 className="text-sm font-bold text-gray-200 mb-4">输入模式</h2>

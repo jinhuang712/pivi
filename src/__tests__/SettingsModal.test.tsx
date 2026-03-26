@@ -93,6 +93,32 @@ describe('SettingsModal Component', () => {
     expect(pttInput).toHaveValue('V');
   });
 
+  it('should start microphone capture in Audio tab', async () => {
+    const stop = vi.fn();
+    const mockStream = {
+      getTracks: () => [{ stop }],
+    } as unknown as MediaStream;
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        enumerateDevices: vi.fn().mockResolvedValue([
+          { kind: 'audioinput', deviceId: 'mic-1', label: 'USB Mic' },
+          { kind: 'audiooutput', deviceId: 'spk-1', label: 'Speaker' },
+        ]),
+        getUserMedia: vi.fn().mockResolvedValue(mockStream),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      },
+    });
+
+    render(<SettingsModal {...defaultProps} />);
+    fireEvent.click(screen.getAllByText('语音与设备')[0]);
+    fireEvent.click(screen.getByText('开始麦克风采集'));
+
+    expect(await screen.findByText('采集中')).toBeInTheDocument();
+  });
+
   it('should allow modifying nickname in Account tab', () => {
     render(<SettingsModal {...defaultProps} />);
     

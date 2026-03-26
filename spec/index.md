@@ -27,6 +27,7 @@
   - [security-model.md](./05-security/security-model.md)
 - **06-delivery/**: 里程碑与进度追踪
   - [project-tracker.md](./06-delivery/project-tracker.md) （唯一进度基准）
+  - [changelog.md](./06-delivery/changelog.md)
   - [roadmap-mvp.md](./06-delivery/roadmap-mvp.md)
 - **07-product-design/**: 产品详细设计与 UI 示意（包含 HTML Demo）
   - [detailed-prd.md](./07-product-design/detailed-prd.md)

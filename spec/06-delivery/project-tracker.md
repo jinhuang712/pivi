@@ -4,9 +4,9 @@
 
 ## 📊 当前进度概览
 
-- **总体进度**：🟢 约 52% 
+- **总体进度**：🟢 约 56% 
 - **当前阶段**：Phase 4 (WebRTC 媒体路由与通信)
-- **最新交付**：完成 4.1 WebRTC 协商信令透传路由首版（Offer/Answer/ICE 靶向判定）。
+- **最新交付**：完成 4.2 本地设备采集首版（麦克风流采集、设备枚举、设备变更监听）。
 
 ---
 
@@ -47,9 +47,9 @@
 - [x] 3.5 **鉴权与安全拦截**：6位 Code 校验逻辑与 UUID 黑名单拦截机制。
 - [x] 3.6 **信令广播机制**：`ROOM_STATE`, `MEMBER_JOINED`, `MEMBER_LEFT`, 状态同步广播。
 
-### Phase 4: WebRTC 媒体路由与通信 (🚧 25%)
+### Phase 4: WebRTC 媒体路由与通信 (🚧 50%)
 - [x] 4.1 **WebRTC 协商核心 (P2P Mesh)**：Offer / Answer / ICE Candidate 的信令透传与连接建立。
-- [ ] 4.2 **本地设备采集**：基于浏览器 API 获取麦克风音频流。
+- [x] 4.2 **本地设备采集**：基于浏览器 API 获取麦克风音频流。
 - [ ] 4.3 **音频流播放与控制**：
   - [ ] 将远端音频流绑定到 `<audio>` 标签。
   - [ ] 实现本地屏蔽 (Local Mute，音量置 0)。
@@ -70,15 +70,6 @@
 
 ---
 
-## 📈 迭代记录 (Changelog)
+## 📈 迭代记录
 
-- **2026-03-22**: 梳理项目规范，输出完整的 `project-tracker.md` 交付追踪表。
-- **2026-03-22**: 完成 Phase 1 基础设施搭建，完成 Phase 2 侧边栏基础 UI，完成 Phase 3 信令结构雏形。
-- **2026-03-24**: 完成主界面控制条改版为中置布局，并同步更新 `channel-prd.md`、`desktop-app-design.md`、`test-strategy.md` 与 HTML 原型。
-- **2026-03-24**: 完成中置控制条麦克风能力补齐（闭麦+输入音量）并同步更新 `channel-prd.md`、`audio-routing.md`、`test-strategy.md` 与 HTML 原型。
-- **2026-03-24**: 完成 Discovery Service 首版（Code 映射注册/查询/删除），并同步更新 `signaling-webrtc.md` 与 `test-host-runtime.md`。
-- **2026-03-24**: 在纯无云约束下完成房主本地服务端口监听首版，并补充无云发现约束与测试定义。
-- **2026-03-24**: 完成 RoomState 内存管理首版实现（成员去重、离开清理、连接状态更新）并同步 Host Runtime 设计与测试清单。
-- **2026-03-24**: 完成 HostAuthGate 首版实现（房间码格式校验、大小写归一化比对、黑名单拦截）并同步技术与测试文档。
-- **2026-03-26**: 完成 RoomBroadcastBuilder 首版实现，统一 `ROOM_STATE`、`MEMBER_JOINED`、`MEMBER_LEFT` 的消息载荷结构。
-- **2026-03-26**: 完成 WebRtcRelayRouter 首版实现，支持 Offer / Answer / ICE 靶向透传与非法路由拦截。
+详细变更请查看 [changelog.md](./changelog.md)。
