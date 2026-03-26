@@ -74,3 +74,8 @@ graph TD
 - **本地音量调节**：将 UI 滑杆值映射到 `<audio>.volume`，范围支持 `0.0 ~ 2.0`。
 - **本地屏蔽**：本地屏蔽仅切换 `<audio>.muted = true`，不影响其他成员听感。
 - **房主全局闭麦执行**：被闭麦端收到信令后直接执行 `localAudioTrack.enabled = false`。
+
+### 2.6 Relay Fallback 自动切换（Phase 4.4）
+- **触发条件**：`iceConnectionState=failed`，或 `checking` 超过阈值（默认 8 秒）。
+- **决策结果**：将对应 `peerId` 标记为 Relay，会话路由从 P2P 切换到房主中转路径。
+- **清理条件**：会话 `closed` 时移除 Relay 标记并释放该 peer 的降级状态。

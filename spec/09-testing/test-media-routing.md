@@ -98,3 +98,14 @@
   - 步骤 1：`audio.srcObject` 等于目标 `MediaStream`。
   - 步骤 2：`audio.volume` 对应 0.35，`audio.muted` 可切换为 `true`。
   - 步骤 3：`localAudioTrack.enabled` 随 mute 状态在 `false/true` 间切换。
+
+### [TC-MEDIA-10] ICE 失败触发 Relay Fallback
+- **描述**：当 ICE 协商失败或检查超时，客户端应触发 Relay 降级并记录 peer 状态。
+- **测试步骤**：
+  1. 向策略引擎输入 `iceState=failed`。
+  2. 向策略引擎输入 `iceState=checking` 且 `elapsedMs` 超过阈值。
+  3. 对已降级 peer 输入 `iceState=closed`。
+- **预期结果**：
+  - 步骤 1：返回 `switch_to_relay`，peer 被标记为 Relay。
+  - 步骤 2：返回 `switch_to_relay`，peer 被标记为 Relay。
+  - 步骤 3：返回 `close_session`，peer Relay 标记被清理。

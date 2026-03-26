@@ -99,3 +99,12 @@ sequenceDiagram
   - `target` 必须存在于当前 `RoomState`。
   - `from != target`。
 - 通过判定后将原始信令原样转发到 `target`，不改写 `payload`。
+
+## 8. 网络降级与中转切换规则（Phase 4.4）
+
+- 客户端持续监听 `RTCPeerConnection.iceConnectionState`。
+- 满足以下任一条件时触发降级决策：
+  - 状态为 `failed`。
+  - 状态为 `checking` 且持续超过超时阈值（默认 8s）。
+- 降级后将该 `peerId` 标记为 Relay 会话，并把媒体路由切换到房主中转路径。
+- 当会话进入 `closed` 时清理对应 Relay 标记。
