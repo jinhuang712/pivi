@@ -146,3 +146,12 @@
 - **预期结果**：
   - Runtime 收到就绪指令后，向所有人广播 `{type: "MIGRATE", newHost: "ws://192.168.1.100:8080"}`。
   - Runtime 自身进入 `DESTROYING` 倒计时状态。
+
+### [TC-HR-08A] 房主移交超时与非法流转拦截
+- **描述**：验证迁移状态机在目标主机超时与错误顺序调用时进入正确错误分支。
+- **测试步骤**：
+  1. 进入 `MigrationInitiated` 后等待超过超时阈值再执行 `runtime_ready`。
+  2. 在 `Normal` 状态直接调用 `broadcast_migrate`。
+- **预期结果**：
+  - 步骤 1：状态变为 `Failed`，错误原因为 `TARGET_RUNTIME_TIMEOUT`。
+  - 步骤 2：返回 `InvalidTransition`。

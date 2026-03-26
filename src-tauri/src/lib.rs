@@ -5,6 +5,7 @@ pub mod room_state;
 pub mod auth;
 pub mod room_broadcast;
 pub mod webrtc_router;
+pub mod host_migration;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]

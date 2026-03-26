@@ -62,6 +62,18 @@
   - `from` 与 `target` 不能相同。
 - 透传层不改写 SDP/Candidate 内容，仅做路由判定与转发目标确认。
 
+## 房主移交状态机骨架（Phase 5.4）
+
+- Runtime 维护 `HostMigrationMachine`，核心状态：
+  - `Normal`
+  - `MigrationInitiated`
+  - `BroadcastNewHost`
+  - `Reconnecting`
+  - `Failed`
+- 正常流程：`initiate_migration -> runtime_ready -> broadcast_migrate -> reconnect_completed`。
+- 超时策略：在 `MigrationInitiated` 阶段若超过迁移超时阈值（默认 5 秒）未收到就绪，进入 `Failed` 并标记 `TARGET_RUNTIME_TIMEOUT`。
+- 状态机仅负责状态推进与非法流转拦截，不直接处理网络 I/O。
+
 ## 可靠性策略
 
 - 心跳间隔与超时踢出

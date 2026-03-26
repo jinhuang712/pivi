@@ -49,6 +49,17 @@ stateDiagram-v2
 ### 1.2 异常中断处理
 如果在 `MigrationInitiated` 阶段，B 的机器无法拉起进程或无法打通公网端口（超时 5 秒），A 需中止迁移流程，并向房间广播“移交失败：目标网络受限”。
 
+### 1.3 状态机实现骨架（Phase 5.4）
+- 使用 `HostMigrationMachine` 承载状态推进，避免分散在多个回调中导致分支漂移。
+- 关键状态迁移：
+  - `Normal -> MigrationInitiated`
+  - `MigrationInitiated -> BroadcastNewHost`
+  - `BroadcastNewHost -> Reconnecting`
+  - `Reconnecting -> Normal(新房主)`
+- 失败迁移：
+  - `MigrationInitiated -> Failed(TARGET_RUNTIME_TIMEOUT)`
+  - `MigrationInitiated -> Failed(自定义原因)`
+
 ---
 
 ## 2. 安全与边界防御
