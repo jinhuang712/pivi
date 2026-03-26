@@ -5,7 +5,9 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
+#[cfg(not(target_os = "windows"))]
 use portmapper::{Client, Config, ProbeOutput, Protocol};
+#[cfg(not(target_os = "windows"))]
 use tokio::time::timeout;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,6 +94,7 @@ pub trait NatMappingBackend: Send + Sync {
 
 pub struct PortmapperBackend;
 
+#[cfg(not(target_os = "windows"))]
 impl NatMappingBackend for PortmapperBackend {
     fn probe(&self) -> Pin<Box<dyn Future<Output = Result<NatMappingProbe, NatMappingError>> + Send + '_>> {
         Box::pin(async move {
@@ -129,6 +132,28 @@ impl NatMappingBackend for PortmapperBackend {
     }
 }
 
+#[cfg(target_os = "windows")]
+impl NatMappingBackend for PortmapperBackend {
+    fn probe(&self) -> Pin<Box<dyn Future<Output = Result<NatMappingProbe, NatMappingError>> + Send + '_>> {
+        Box::pin(async move {
+            Ok(NatMappingProbe {
+                upnp: false,
+                pcp: false,
+                nat_pmp: false,
+            })
+        })
+    }
+
+    fn map_tcp_port(
+        &self,
+        _local_port: u16,
+        _protocol: NatMappingProtocol,
+    ) -> Pin<Box<dyn Future<Output = Option<NatMappingLease>> + Send + '_>> {
+        Box::pin(async move { None })
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
 fn config_for(protocol: NatMappingProtocol) -> Config {
     Config {
         enable_upnp: matches!(protocol, NatMappingProtocol::Upnp),
@@ -150,6 +175,7 @@ fn select_protocol(probe: &NatMappingProbe) -> Option<NatMappingProtocol> {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 impl From<ProbeOutput> for NatMappingProbe {
     fn from(value: ProbeOutput) -> Self {
         Self {

@@ -36,3 +36,4 @@
 - **2026-03-27**: 完成 Phase 7.5 Relay Fallback 联动首版：当直连入口探测失败但房间仍可解析时，加入链路改为回退到 Relay 模式，并将中转状态同步展示到确认弹窗与主界面网络状态。
 - **2026-03-27**: 完成 Phase 7.4 NAT 映射协议接入首版：新增 `nat_mapping.rs`，通过 `portmapper` 接入 UPnP / NAT-PMP / PCP 探测与 TCP 端口映射，并将公网映射结果并入 `room_preparation.rs` 的邀请码签发流程。
 - **2026-03-27**: 准备发布 `0.2.0`：同步 `package.json`、`package-lock.json`、`Cargo.toml`、`Cargo.lock` 与 `tauri.conf.json` 版本号，并基于当前稳定构建流程生成发布产物。
+- **2026-03-27**: 为 `0.2.0` Windows 发布补充兼容降级：将 `portmapper` 调整为非 Windows 目标依赖，Windows 打包时对 NAT 映射能力回退为固定端口/Relay 流程，避免上游 `wmi/windows_core` 依赖冲突阻塞发布。
