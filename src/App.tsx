@@ -101,7 +101,13 @@ function App() {
       setInviteCode(preparedInvite.inviteCode);
       setRoomName(newRoomName);
       setNetworkPath('p2p');
-      setNetworkNotice(preparedInvite.reusedLastSuccessfulPort ? '已复用上次成功端口' : '');
+      setNetworkNotice(
+        preparedInvite.usedExternalMapping
+          ? `已建立 ${preparedInvite.natMappingProtocol ?? '端口映射'} 端口映射`
+          : preparedInvite.reusedLastSuccessfulPort
+            ? '已复用上次成功端口'
+            : '',
+      );
       setJoinError('');
       setMembers([
         {

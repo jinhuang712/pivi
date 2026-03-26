@@ -19,6 +19,8 @@ export interface PreparedRoomInvite {
   inviteCode: string;
   port: number;
   reusedLastSuccessfulPort: boolean;
+  usedExternalMapping: boolean;
+  natMappingProtocol: 'upnp' | 'pcp' | 'nat-pmp' | null;
 }
 
 export interface EndpointProbeResult {

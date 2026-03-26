@@ -3,10 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 
 const inviteCodeMocks = vi.hoisted(() => ({
-  prepareRoomInvite: vi.fn(async () => ({
+  prepareRoomInvite: vi.fn(async (): Promise<{
+    inviteCode: string;
+    port: number;
+    reusedLastSuccessfulPort: boolean;
+    usedExternalMapping: boolean;
+    natMappingProtocol: 'upnp' | 'pcp' | 'nat-pmp' | null;
+  }> => ({
     inviteCode: 'AB12-CD34-EF56-GH78',
     port: 7788,
     reusedLastSuccessfulPort: false,
+    usedExternalMapping: false,
+    natMappingProtocol: null,
   })),
   probeRoomEndpoint: vi.fn(async (): Promise<{ reachable: boolean; failureKind: string | null; elapsedMs: number }> => ({
     reachable: true,
@@ -42,10 +50,18 @@ vi.mock('../lib/inviteCode', async (importOriginal) => {
 describe('App Phase 7 invite flow', () => {
   beforeEach(() => {
     localStorage.clear();
-    inviteCodeMocks.prepareRoomInvite.mockImplementation(async () => ({
+    inviteCodeMocks.prepareRoomInvite.mockImplementation(async (): Promise<{
+      inviteCode: string;
+      port: number;
+      reusedLastSuccessfulPort: boolean;
+      usedExternalMapping: boolean;
+      natMappingProtocol: 'upnp' | 'pcp' | 'nat-pmp' | null;
+    }> => ({
       inviteCode: 'AB12-CD34-EF56-GH78',
       port: 7788,
       reusedLastSuccessfulPort: false,
+      usedExternalMapping: false,
+      natMappingProtocol: null,
     }));
     inviteCodeMocks.probeRoomEndpoint.mockImplementation(async (): Promise<{ reachable: boolean; failureKind: string | null; elapsedMs: number }> => ({
       reachable: true,
@@ -76,7 +92,15 @@ describe('App Phase 7 invite flow', () => {
   });
 
   it('keeps invite hidden until room preparation is ready', async () => {
-    let resolvePrepare!: (value: { inviteCode: string; port: number; reusedLastSuccessfulPort: boolean }) => void;
+    let resolvePrepare!: (
+      value: {
+        inviteCode: string;
+        port: number;
+        reusedLastSuccessfulPort: boolean;
+        usedExternalMapping: boolean;
+        natMappingProtocol: 'upnp' | 'pcp' | 'nat-pmp' | null;
+      },
+    ) => void;
     inviteCodeMocks.prepareRoomInvite.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -90,7 +114,13 @@ describe('App Phase 7 invite flow', () => {
     expect(screen.getByText('正在准备房间')).toBeInTheDocument();
     expect(screen.queryByText('AB12-CD34-EF56-GH78')).not.toBeInTheDocument();
 
-    resolvePrepare({ inviteCode: 'AB12-CD34-EF56-GH78', port: 7788, reusedLastSuccessfulPort: true });
+    resolvePrepare({
+      inviteCode: 'AB12-CD34-EF56-GH78',
+      port: 7788,
+      reusedLastSuccessfulPort: true,
+      usedExternalMapping: false,
+      natMappingProtocol: null,
+    });
 
     await waitFor(() => {
       expect(screen.getByText('AB12-CD34-EF56-GH78')).toBeInTheDocument();

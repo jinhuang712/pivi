@@ -5,6 +5,7 @@ pub mod room_state;
 pub mod auth;
 pub mod endpoint_probe;
 pub mod invite_code;
+pub mod nat_mapping;
 pub mod room_preparation;
 pub mod room_broadcast;
 pub mod webrtc_router;
@@ -36,6 +37,8 @@ struct PreparedRoomInviteDto {
     invite_code: String,
     port: u16,
     reused_last_successful_port: bool,
+    used_external_mapping: bool,
+    nat_mapping_protocol: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -119,22 +122,29 @@ fn parse_invite_code(code: String, current_slot: u16) -> Result<InviteCodePayloa
 }
 
 #[tauri::command]
-fn prepare_room_invite(
-    state: tauri::State<RoomPreparationState>,
+async fn prepare_room_invite(
+    state: tauri::State<'_, RoomPreparationState>,
     ipv4: String,
     expiry_slot: u16,
 ) -> Result<PreparedRoomInviteDto, String> {
     let ipv4 = ipv4
         .parse()
         .map_err(|_| format!("invalid ipv4 address: {ipv4}"))?;
-    state
+    let prepared = state
+        .inner()
         .prepare_room_invite(ipv4, expiry_slot)
-        .map(|prepared| PreparedRoomInviteDto {
+        .await
+        .map_err(|err| format!("{err:?}"))?;
+
+    Ok(PreparedRoomInviteDto {
             invite_code: prepared.invite_code,
             port: prepared.port,
             reused_last_successful_port: prepared.reused_last_successful_port,
+            used_external_mapping: prepared.used_external_mapping,
+            nat_mapping_protocol: prepared
+                .nat_mapping_protocol
+                .map(format_nat_mapping_protocol),
         })
-        .map_err(|err| format!("{err:?}"))
 }
 
 #[tauri::command]
@@ -180,6 +190,14 @@ fn format_join_mode(value: InviteJoinMode) -> &'static str {
     match value {
         InviteJoinMode::DirectHost => "direct-host",
         InviteJoinMode::HostRelayPreferred => "host-relay-preferred",
+    }
+}
+
+fn format_nat_mapping_protocol(value: nat_mapping::NatMappingProtocol) -> String {
+    match value {
+        nat_mapping::NatMappingProtocol::Upnp => "upnp".to_string(),
+        nat_mapping::NatMappingProtocol::Pcp => "pcp".to_string(),
+        nat_mapping::NatMappingProtocol::NatPmp => "nat-pmp".to_string(),
     }
 }
 

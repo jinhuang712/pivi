@@ -34,3 +34,4 @@
 - **2026-03-27**: 启动 Phase 7.4 首版实现：新增 `room_preparation.rs` 固定端口池与历史成功端口复用逻辑，暴露 `prepare_room_invite` Tauri 命令，并将建房流程切换为优先选择稳定端口后再签发邀请码。
 - **2026-03-27**: 启动 Phase 7.5 首版实现：新增 `endpoint_probe.rs` 与 `joinRoom.ts`，加入链路已接入入口预检、短超时快速重试与错误分层提示；当前仍未接入 Relay Fallback 的真实联动。
 - **2026-03-27**: 完成 Phase 7.5 Relay Fallback 联动首版：当直连入口探测失败但房间仍可解析时，加入链路改为回退到 Relay 模式，并将中转状态同步展示到确认弹窗与主界面网络状态。
+- **2026-03-27**: 完成 Phase 7.4 NAT 映射协议接入首版：新增 `nat_mapping.rs`，通过 `portmapper` 接入 UPnP / NAT-PMP / PCP 探测与 TCP 端口映射，并将公网映射结果并入 `room_preparation.rs` 的邀请码签发流程。
