@@ -1,0 +1,52 @@
+name: release-windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: GitHub Release tag，例如 v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run tauri:build:windows
+      - name: Prepare release assets
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          $outDir = "release-assets"
+          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+
+          $installer = Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $portable = Get-Item "src-tauri/target/release/pivi.exe"
+
+          Copy-Item $installer.FullName "$outDir/Pivi-$version-windows.exe" -Force
+          Copy-Item $msi.FullName "$outDir/Pivi-$version-windows.msi" -Force
+          Copy-Item $portable.FullName "$outDir/Pivi-$version-windows-portable.exe" -Force
+
+      - name: Ensure release exists
+        shell: bash
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --title "Pivi $RELEASE_TAG" --generate-notes
+          fi
+
+      - name: Upload release assets
+        shell: bash
+        run: gh release upload "$RELEASE_TAG" release-assets/* --clobber
