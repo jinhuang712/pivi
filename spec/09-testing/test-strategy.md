@@ -39,6 +39,7 @@
 - 设置面板本地麦克风流采集（`getUserMedia`）与设备热更新监听。
 - 远端 `MediaStream` 到 `<audio>` 的绑定与本地播放控制（`volume/muted`）。
 - ICE 失败/超时触发 Relay Fallback 的策略判定与会话清理。
+- 屏幕共享流采集（`getDisplayMedia`）与 PeerConnection 推流替换。
 - 频道主页中置控制条的交互测试（共享状态切换、麦克风开关、麦克风音量滑杆、扬声器开关、扬声器音量滑杆、设置入口触发）。
 
 ### 🖼️ [3. DataChannel 与大文件分片测试用例](./test-datachannel.md)

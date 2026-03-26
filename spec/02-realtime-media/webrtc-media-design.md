@@ -50,6 +50,18 @@ flowchart LR
   - macOS：需依赖系统级机制（如 ScreenCaptureKit 或黑路音频虚拟驱动）
 - **降级策略（Simulcast/SVC）**：建议开启 Simulcast，弱网用户接收低码率流，避免单个弱网用户拖垮全体体验。
 
+## 屏幕共享采集与推流骨架（Phase 5.3）
+
+- 采集入口：`navigator.mediaDevices.getDisplayMedia`。
+- 质量预设：
+  - `720p`: `1280x720@30fps`
+  - `1080p`: `1920x1080@60fps`
+  - `原画`: 使用系统默认采集参数
+- 推流策略：
+  - 若 PeerConnection 已存在视频 sender，则执行 `replaceTrack(screenTrack)`。
+  - 若不存在视频 sender，则执行 `addTrack(screenTrack)`。
+- 结束处理：监听 `videoTrack.onended`，触发 UI 状态回收和轨道清理。
+
 ## 用户可控项
 
 - 输入设备与输出设备切换

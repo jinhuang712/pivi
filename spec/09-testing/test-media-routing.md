@@ -109,3 +109,14 @@
   - 步骤 1：返回 `switch_to_relay`，peer 被标记为 Relay。
   - 步骤 2：返回 `switch_to_relay`，peer 被标记为 Relay。
   - 步骤 3：返回 `close_session`，peer Relay 标记被清理。
+
+### [TC-MEDIA-11] 屏幕共享采集与推流
+- **描述**：验证屏幕共享流采集、推流替换与停止清理流程。
+- **测试步骤**：
+  1. 调用屏幕共享采集接口，指定 `1080p` 质量预设。
+  2. 向已存在视频 sender 的 PeerConnection 发布共享轨道。
+  3. 触发停止共享操作。
+- **预期结果**：
+  - 步骤 1：调用 `getDisplayMedia`，返回 `videoTrack`。
+  - 步骤 2：调用 `replaceTrack(videoTrack)`，并返回替换计数。
+  - 步骤 3：共享流全部 track 执行 `stop()`。
