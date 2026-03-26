@@ -1,12 +1,12 @@
 # 项目交付追踪表 (Project Delivery Tracker)
 
-> **文档说明**：本文档作为 Local Voice Chat 项目的**唯一进度基准 (Single Source of Truth)**。所有开发工作均依据此 Checklist 进行，并在每次功能交付后实时更新此表。
+> **文档说明**：本文档作为 Pivi 项目的**唯一进度基准 (Single Source of Truth)**。所有开发工作均依据此 Checklist 进行，并在每次功能交付后实时更新此表。
 
 ## 📊 当前进度概览
 
 - **总体进度**：🟢 100% 
 - **当前阶段**：Phase 6 (打包与分发)
-- **最新交付**：完成控制条与窗口比例优化（音量数值化+悬浮竖向调节、默认窗口扩展为 `1320x760`）。
+- **最新交付**：完成 `Pivi` 命名统一与一键分享脚本（`release-share.sh` 输出可分发 DMG/EXE）。
 
 ---
 

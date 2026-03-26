@@ -1,5 +1,5 @@
 {
-  "name": "voicechat-app",
+  "name": "pivi",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "tauri:build": "tauri build",
     "tauri:build:macos": "tauri build --bundles app,dmg",
-    "tauri:build:windows": "tauri build --bundles nsis,msi"
+    "tauri:build:windows": "tauri build --bundles nsis,msi",
+    "release:share": "bash ./release-share.sh"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",

@@ -17,10 +17,12 @@
 - 安装依赖：`npm install`
 - 前端构建：`npm run build`
 - Windows 打包：`npm run tauri:build:windows`
+- 一键分享产物脚本：`npm run release:share`（Windows 环境执行可直接生成 `.exe/.msi` 到 `release-share/`）
 
 ## 4. 产物路径
 
 - 打包结果位于 `src-tauri/target/release/bundle/`
+- 分享目录位于仓库根目录 `release-share/`，文件命名为 `Pivi-<version>-windows.exe` / `Pivi-<version>-windows.msi`
 - 常见路径：
   - `src-tauri/target/release/bundle/nsis/*.exe`
   - `src-tauri/target/release/bundle/msi/*.msi`

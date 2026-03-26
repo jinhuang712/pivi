@@ -16,10 +16,12 @@
 - 安装依赖：`npm install`
 - 前端构建：`npm run build`
 - macOS 打包：`npm run tauri:build:macos`
+- 一键分享产物脚本：`npm run release:share`
 
 ## 4. 产物路径
 
 - 打包结果位于 `src-tauri/target/release/bundle/`
+- 分享目录位于仓库根目录 `release-share/`，文件命名为 `Pivi-<version>-macos.dmg`
 - 常见路径：
   - `src-tauri/target/release/bundle/macos/*.app`
   - `src-tauri/target/release/bundle/macos/*.dmg`（当前构建链路产物）

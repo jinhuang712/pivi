@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "voicechat-app",
+  "productName": "Pivi",
   "version": "0.1.0",
-  "identifier": "com.huangjin.voicechat-app",
+  "identifier": "com.huangjin.pivi",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "voicechat-app",
+        "title": "Pivi",
         "width": 1320,
         "height": 760
       }

@@ -24,3 +24,5 @@
 - **2026-03-26**: 完成 Windows 打包流程落地（`tauri:build:windows` 脚本、`windows-build.md`、CI workflow 产物上传）。
 - **2026-03-26**: 完成应用图标统一替换，基于 `logo/logo.jpg` 重建并覆盖 Tauri 全平台图标资产（icns/ico/png/Appx/Android/iOS）。
 - **2026-03-26**: 完成主区控制条交互优化（音量默认显示数字，悬浮弹出竖向调节条）并将默认窗口扩展为 `1320x760`。
+- **2026-03-26**: 新增根目录一键分享脚本 `release-share.sh`，统一收集输出 `Pivi` 的可分发 DMG/EXE/MSI 文件到 `release-share/`。
+- **2026-03-26**: 应用命名统一为 `Pivi`（Tauri `productName` 与窗口标题同步更新）。

@@ -1,6 +1,6 @@
-# Local Voice Chat
+# Pivi
 
-Local Voice Chat 是一个面向电竞开黑场景的桌面语音应用项目，目标是以 **Tauri + React + Rust** 实现低资源占用、本地优先、可逐步演进到跨网络可用的语音协作体验。
+Pivi 是一个面向电竞开黑场景的桌面语音应用项目，目标是以 **Tauri + React + Rust** 实现低资源占用、本地优先、可逐步演进到跨网络可用的语音协作体验。
 
 当前项目采用「**Spec 驱动开发**」模式，产品、架构、技术、测试、交付都在 `spec/` 下维护，并与代码实现同步推进。
 
@@ -63,6 +63,8 @@ Rust 侧测试命令（环境需安装 Rust/Cargo）：
 ## 安装与打包
 
 当前可用命令：
+- 一键生成可分享产物目录（`release-share/`）：
+  - `npm run release:share`
 - macOS 打包（`.app` + `.dmg`）：
   - `npm run tauri:build:macos`
 - Windows 打包（Windows 环境执行）：
