@@ -21,5 +21,6 @@ jobs:
         with:
           name: windows-bundles
           path: |
+            src-tauri/target/release/pivi.exe
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
