@@ -6,12 +6,11 @@ import ConfirmJoinModal from "./components/ConfirmJoinModal";
 import SettingsModal from "./components/SettingsModal";
 import MainArea from "./components/MainArea";
 import {
-  generateInviteCode,
   getCurrentInviteExpirySlot,
   normalizeInviteCode,
   parseInviteCode,
+  prepareRoomInvite,
   prettifyInviteCode,
-  type InviteCodePayload,
 } from "./lib/inviteCode";
 import type { JoinPreview, RoomMember, RoomSnapshot, ChatMessage } from "./types/channel";
 
@@ -35,16 +34,12 @@ const writeRoomRegistry = (rooms: RoomSnapshot[]) => {
 
 const makeMemberId = () => `uuid-${crypto.randomUUID().slice(0, 8)}`;
 
-const buildMockInvitePayload = (): InviteCodePayload => {
+const buildMockInviteEndpoint = () => {
   const lastOctet = 20 + Math.floor(Math.random() * 180);
-  const port = 7000 + Math.floor(Math.random() * 1000);
   const expirySlot = (getCurrentInviteExpirySlot() + 12) % 1024;
 
   return {
-    endpointScope: "private-lan-ipv4",
-    joinMode: "direct-host",
     ipv4: `192.168.31.${lastOctet}`,
-    port,
     expirySlot,
   };
 };
@@ -79,23 +74,30 @@ function App() {
     setAppState('preparing');
 
     try {
-      const payload = buildMockInvitePayload();
-      const rawInviteCode = await generateInviteCode(payload);
-      setPrepareHint('正在校验邀请码可用性...');
-      const formattedInviteCode = await prettifyInviteCode(rawInviteCode);
-      await parseInviteCode(formattedInviteCode, payload.expirySlot);
+      const endpoint = buildMockInviteEndpoint();
+      setPrepareHint('正在选择稳定入口端口...');
+      const preparedInvite = await prepareRoomInvite(endpoint.ipv4, endpoint.expirySlot);
+      setPrepareHint(
+        preparedInvite.reusedLastSuccessfulPort ? '正在复用上次成功端口...' : '正在校验邀请码可用性...',
+      );
+      await parseInviteCode(preparedInvite.inviteCode, endpoint.expirySlot);
       setPrepareHint('正在同步房间信息...');
       const newRoomName = `${currentUserName} 的房间`;
       const roomEntry: RoomSnapshot = {
-        inviteCode: formattedInviteCode,
+        inviteCode: preparedInvite.inviteCode,
         roomName: newRoomName,
         hostName: currentUserName,
       };
       const registry = readRoomRegistry();
       writeRoomRegistry(
-        [roomEntry, ...registry.filter((room) => normalizeInviteCode(room.inviteCode) !== rawInviteCode)].slice(0, 20),
+        [
+          roomEntry,
+          ...registry.filter(
+            (room) => normalizeInviteCode(room.inviteCode) !== normalizeInviteCode(preparedInvite.inviteCode),
+          ),
+        ].slice(0, 20),
       );
-      setInviteCode(formattedInviteCode);
+      setInviteCode(preparedInvite.inviteCode);
       setRoomName(newRoomName);
       setJoinError('');
       setMembers([

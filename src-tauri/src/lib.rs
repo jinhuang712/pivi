@@ -4,6 +4,7 @@ pub mod ws_server;
 pub mod room_state;
 pub mod auth;
 pub mod invite_code;
+pub mod room_preparation;
 pub mod room_broadcast;
 pub mod webrtc_router;
 pub mod host_migration;
@@ -14,6 +15,7 @@ use invite_code::{
     decode_invite_code, encode_invite_code, format_invite_code, InviteCodePayload, InviteEndpointScope,
     InviteJoinMode,
 };
+use room_preparation::RoomPreparationState;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,6 +26,14 @@ struct InviteCodePayloadDto {
     ipv4: String,
     port: u16,
     expiry_slot: u16,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PreparedRoomInviteDto {
+    invite_code: String,
+    port: u16,
+    reused_last_successful_port: bool,
 }
 
 impl TryFrom<InviteCodePayloadDto> for InviteCodePayload {
@@ -98,6 +108,25 @@ fn parse_invite_code(code: String, current_slot: u16) -> Result<InviteCodePayloa
         .map_err(|err| format!("{err:?}"))
 }
 
+#[tauri::command]
+fn prepare_room_invite(
+    state: tauri::State<RoomPreparationState>,
+    ipv4: String,
+    expiry_slot: u16,
+) -> Result<PreparedRoomInviteDto, String> {
+    let ipv4 = ipv4
+        .parse()
+        .map_err(|_| format!("invalid ipv4 address: {ipv4}"))?;
+    state
+        .prepare_room_invite(ipv4, expiry_slot)
+        .map(|prepared| PreparedRoomInviteDto {
+            invite_code: prepared.invite_code,
+            port: prepared.port,
+            reused_last_successful_port: prepared.reused_last_successful_port,
+        })
+        .map_err(|err| format!("{err:?}"))
+}
+
 fn parse_endpoint_scope(value: &str) -> Result<InviteEndpointScope, String> {
     match value {
         "private-lan-ipv4" => Ok(InviteEndpointScope::PrivateLanIpv4),
@@ -134,6 +163,7 @@ fn format_join_mode(value: InviteJoinMode) -> &'static str {
 pub fn run() {
     tauri::Builder::default()
         .manage(HotkeyState::default())
+        .manage(RoomPreparationState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -143,7 +173,8 @@ pub fn run() {
             get_global_hotkeys,
             generate_invite_code,
             prettify_invite_code,
-            parse_invite_code
+            parse_invite_code,
+            prepare_room_invite
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

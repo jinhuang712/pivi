@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 
 const inviteCodeMocks = vi.hoisted(() => ({
-  generateInviteCode: vi.fn(async () => 'AB12CD34EF56GH78'),
+  prepareRoomInvite: vi.fn(async () => ({
+    inviteCode: 'AB12-CD34-EF56-GH78',
+    port: 7788,
+    reusedLastSuccessfulPort: false,
+  })),
   prettifyInviteCode: vi.fn(async (code: string) => {
     const normalized = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
     return normalized.match(/.{1,4}/g)?.join('-') ?? normalized;
@@ -22,7 +26,7 @@ vi.mock('../lib/inviteCode', async (importOriginal) => {
 
   return {
     ...actual,
-    generateInviteCode: inviteCodeMocks.generateInviteCode,
+    prepareRoomInvite: inviteCodeMocks.prepareRoomInvite,
     prettifyInviteCode: inviteCodeMocks.prettifyInviteCode,
     parseInviteCode: inviteCodeMocks.parseInviteCode,
     getCurrentInviteExpirySlot: () => 500,
@@ -32,7 +36,11 @@ vi.mock('../lib/inviteCode', async (importOriginal) => {
 describe('App Phase 7 invite flow', () => {
   beforeEach(() => {
     localStorage.clear();
-    inviteCodeMocks.generateInviteCode.mockImplementation(async () => 'AB12CD34EF56GH78');
+    inviteCodeMocks.prepareRoomInvite.mockImplementation(async () => ({
+      inviteCode: 'AB12-CD34-EF56-GH78',
+      port: 7788,
+      reusedLastSuccessfulPort: false,
+    }));
     inviteCodeMocks.prettifyInviteCode.mockImplementation(async (code: string) => {
       const normalized = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
       return normalized.match(/.{1,4}/g)?.join('-') ?? normalized;
@@ -57,11 +65,11 @@ describe('App Phase 7 invite flow', () => {
   });
 
   it('keeps invite hidden until room preparation is ready', async () => {
-    let resolveGenerate!: (value: string) => void;
-    inviteCodeMocks.generateInviteCode.mockImplementation(
+    let resolvePrepare!: (value: { inviteCode: string; port: number; reusedLastSuccessfulPort: boolean }) => void;
+    inviteCodeMocks.prepareRoomInvite.mockImplementation(
       () =>
-        new Promise<string>((resolve) => {
-          resolveGenerate = resolve;
+        new Promise((resolve) => {
+          resolvePrepare = resolve;
         }),
     );
 
@@ -71,7 +79,7 @@ describe('App Phase 7 invite flow', () => {
     expect(screen.getByText('正在准备房间')).toBeInTheDocument();
     expect(screen.queryByText('AB12-CD34-EF56-GH78')).not.toBeInTheDocument();
 
-    resolveGenerate('AB12CD34EF56GH78');
+    resolvePrepare({ inviteCode: 'AB12-CD34-EF56-GH78', port: 7788, reusedLastSuccessfulPort: true });
 
     await waitFor(() => {
       expect(screen.getByText('AB12-CD34-EF56-GH78')).toBeInTheDocument();
@@ -79,7 +87,7 @@ describe('App Phase 7 invite flow', () => {
   });
 
   it('returns to join screen with error when room preparation fails', async () => {
-    inviteCodeMocks.generateInviteCode.mockRejectedValueOnce(new Error('generation failed'));
+    inviteCodeMocks.prepareRoomInvite.mockRejectedValueOnce(new Error('generation failed'));
 
     render(<App />);
     fireEvent.click(screen.getByText('创建新房间'));
