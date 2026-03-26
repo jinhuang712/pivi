@@ -200,7 +200,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         return (
           <div id="tab-ban">
             <h1 className="text-xl font-bold mb-6 text-white text-red-400">封禁与黑名单</h1>
-            <p className="text-sm text-gray-400 mb-4">被封禁的用户将无法通过当前口令加入房间。</p>
+            <p className="text-sm text-gray-400 mb-4">被封禁的用户将无法通过当前邀请码加入房间。</p>
             <div className="bg-[#1e1f22] rounded border border-gray-700 p-4">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center space-x-2">

@@ -9,7 +9,7 @@ export interface ChatMessage {
 }
 
 export interface RoomSnapshot {
-  roomCode: string;
+  inviteCode: string;
   roomName: string;
   hostName: string;
 }

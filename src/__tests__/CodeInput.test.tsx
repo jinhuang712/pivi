@@ -3,24 +3,21 @@ import { describe, it, expect, vi } from 'vitest';
 import CodeInput from '../components/CodeInput';
 
 describe('CodeInput Component', () => {
-  it('should render 6 input fields', () => {
+  it('should render 4 grouped input fields', () => {
     render(<CodeInput onComplete={() => {}} />);
     const inputs = screen.getAllByRole('textbox');
-    expect(inputs).toHaveLength(6);
+    expect(inputs).toHaveLength(4);
   });
 
   it('should only allow alphanumeric characters and auto uppercase', () => {
     render(<CodeInput onComplete={() => {}} />);
     const inputs = screen.getAllByRole('textbox');
     
-    fireEvent.change(inputs[0], { target: { value: 'a' } });
-    expect(inputs[0]).toHaveValue('A');
+    fireEvent.change(inputs[0], { target: { value: 'ab!2' } });
+    expect(inputs[0]).toHaveValue('AB2');
 
-    fireEvent.change(inputs[1], { target: { value: '9' } });
-    expect(inputs[1]).toHaveValue('9');
-
-    fireEvent.change(inputs[2], { target: { value: '@' } });
-    expect(inputs[2]).toHaveValue('');
+    fireEvent.change(inputs[1], { target: { value: 'cdef' } });
+    expect(inputs[1]).toHaveValue('CDEF');
   });
 
   it('should auto-focus next input when typing', () => {
@@ -31,10 +28,8 @@ describe('CodeInput Component', () => {
     inputs[0].focus();
     expect(inputs[0]).toHaveFocus();
 
-    // Type a character
-    fireEvent.change(inputs[0], { target: { value: 'A' } });
+    fireEvent.change(inputs[0], { target: { value: 'AB12' } });
     
-    // Focus should move to the next input
     expect(inputs[1]).toHaveFocus();
   });
 
@@ -48,18 +43,17 @@ describe('CodeInput Component', () => {
     expect(inputs[0]).toHaveFocus();
   });
 
-  it('should trigger onComplete when all 6 digits are filled', () => {
+  it('should trigger onComplete when all 16 characters are filled', () => {
     const onCompleteMock = vi.fn();
     render(<CodeInput onComplete={onCompleteMock} />);
     const inputs = screen.getAllByRole('textbox');
     
-    // Simulate typing 6 valid characters
-    const code = ['A', 'B', '1', '2', 'C', 'D'];
-    code.forEach((char, idx) => {
-      fireEvent.change(inputs[idx], { target: { value: char } });
+    const code = ['AB12', 'CD34', 'EF56', 'GH78'];
+    code.forEach((chunk, idx) => {
+      fireEvent.change(inputs[idx], { target: { value: chunk } });
     });
 
-    expect(onCompleteMock).toHaveBeenCalledWith('AB12CD');
+    expect(onCompleteMock).toHaveBeenCalledWith('AB12CD34EF56GH78');
     expect(onCompleteMock).toHaveBeenCalledTimes(1);
   });
 
@@ -68,16 +62,13 @@ describe('CodeInput Component', () => {
     render(<CodeInput onComplete={onCompleteMock} />);
     const inputs = screen.getAllByRole('textbox');
     
-    // Simulate pasting a 6-digit code
-    fireEvent.paste(inputs[0], { clipboardData: { getData: () => 'x9y8z7' } });
+    fireEvent.paste(inputs[0], { clipboardData: { getData: () => 'ab12-cd34-ef56-gh78' } });
 
-    expect(inputs[0]).toHaveValue('X');
-    expect(inputs[1]).toHaveValue('9');
-    expect(inputs[2]).toHaveValue('Y');
-    expect(inputs[3]).toHaveValue('8');
-    expect(inputs[4]).toHaveValue('Z');
-    expect(inputs[5]).toHaveValue('7');
+    expect(inputs[0]).toHaveValue('AB12');
+    expect(inputs[1]).toHaveValue('CD34');
+    expect(inputs[2]).toHaveValue('EF56');
+    expect(inputs[3]).toHaveValue('GH78');
     
-    expect(onCompleteMock).toHaveBeenCalledWith('X9Y8Z7');
+    expect(onCompleteMock).toHaveBeenCalledWith('AB12CD34EF56GH78');
   });
 });

@@ -34,7 +34,7 @@ describe('SettingsModal Component', () => {
     // The content for Ban list should appear
     const banHeading = screen.getAllByText('封禁与黑名单').find(el => el.tagName.toLowerCase() === 'h1');
     expect(banHeading).toBeInTheDocument();
-    expect(screen.getByText('被封禁的用户将无法通过当前口令加入房间。')).toBeInTheDocument();
+    expect(screen.getByText('被封禁的用户将无法通过当前邀请码加入房间。')).toBeInTheDocument();
   });
 
   it('should call onClose when close button is clicked', () => {

@@ -5,6 +5,14 @@ import CodeInput from "./components/CodeInput";
 import ConfirmJoinModal from "./components/ConfirmJoinModal";
 import SettingsModal from "./components/SettingsModal";
 import MainArea from "./components/MainArea";
+import {
+  generateInviteCode,
+  getCurrentInviteExpirySlot,
+  normalizeInviteCode,
+  parseInviteCode,
+  prettifyInviteCode,
+  type InviteCodePayload,
+} from "./lib/inviteCode";
 import type { JoinPreview, RoomMember, RoomSnapshot, ChatMessage } from "./types/channel";
 
 const ROOM_REGISTRY_KEY = 'lvc_room_registry_v1';
@@ -25,9 +33,21 @@ const writeRoomRegistry = (rooms: RoomSnapshot[]) => {
   localStorage.setItem(ROOM_REGISTRY_KEY, JSON.stringify(rooms));
 };
 
-const makeRoomCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
-
 const makeMemberId = () => `uuid-${crypto.randomUUID().slice(0, 8)}`;
+
+const buildMockInvitePayload = (): InviteCodePayload => {
+  const lastOctet = 20 + Math.floor(Math.random() * 180);
+  const port = 7000 + Math.floor(Math.random() * 1000);
+  const expirySlot = (getCurrentInviteExpirySlot() + 12) % 1024;
+
+  return {
+    endpointScope: "private-lan-ipv4",
+    joinMode: "direct-host",
+    ipv4: `192.168.31.${lastOctet}`,
+    port,
+    expirySlot,
+  };
+};
 
 function App() {
   const [appState, setAppState] = useState<'join' | 'confirm' | 'channel'>('join');
@@ -35,7 +55,7 @@ function App() {
   const [joinError, setJoinError] = useState('');
   const [pendingJoin, setPendingJoin] = useState<JoinPreview | null>(null);
   const [roomName, setRoomName] = useState('');
-  const [roomCode, setRoomCode] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const currentUserName = useMemo(
@@ -52,51 +72,67 @@ function App() {
 
   const currentUserIsHost = members.find((m) => m.id === currentUserId)?.isHost ?? false;
 
-  const handleCreateRoom = () => {
-    const code = makeRoomCode();
-    const newRoomName = `${currentUserName} 的房间`;
-    const roomEntry: RoomSnapshot = {
-      roomCode: code,
-      roomName: newRoomName,
-      hostName: currentUserName,
-    };
-    const registry = readRoomRegistry();
-    writeRoomRegistry([roomEntry, ...registry.filter((r) => r.roomCode !== code)].slice(0, 20));
-    setRoomCode(code);
-    setRoomName(newRoomName);
-    setJoinError('');
-    setMembers([
-      {
-        id: currentUserId,
-        name: currentUserName,
-        isHost: true,
-        isSpeaking: false,
-        localMuted: false,
-        serverMuted: false,
-        volume: 100,
-      },
-    ]);
-    setMessages([]);
-    setAppState('channel');
+  const handleCreateRoom = async () => {
+    try {
+      const rawInviteCode = await generateInviteCode(buildMockInvitePayload());
+      const formattedInviteCode = await prettifyInviteCode(rawInviteCode);
+      const newRoomName = `${currentUserName} 的房间`;
+      const roomEntry: RoomSnapshot = {
+        inviteCode: formattedInviteCode,
+        roomName: newRoomName,
+        hostName: currentUserName,
+      };
+      const registry = readRoomRegistry();
+      writeRoomRegistry(
+        [roomEntry, ...registry.filter((room) => normalizeInviteCode(room.inviteCode) !== rawInviteCode)].slice(0, 20),
+      );
+      setInviteCode(formattedInviteCode);
+      setRoomName(newRoomName);
+      setJoinError('');
+      setMembers([
+        {
+          id: currentUserId,
+          name: currentUserName,
+          isHost: true,
+          isSpeaking: false,
+          localMuted: false,
+          serverMuted: false,
+          volume: 100,
+        },
+      ]);
+      setMessages([]);
+      setAppState('channel');
+    } catch {
+      setJoinError('邀请码生成失败，请稍后重试。');
+    }
   };
 
-  const handleCodeComplete = (code: string) => {
-    const registry = readRoomRegistry();
-    const matched = registry.find((room) => room.roomCode === code.toUpperCase());
-    if (!matched) {
-      setJoinError('未找到该房间口令，请先创建房间或确认输入无误。');
+  const handleCodeComplete = async (code: string) => {
+    try {
+      const formattedInviteCode = await prettifyInviteCode(code);
+      await parseInviteCode(formattedInviteCode);
+      const registry = readRoomRegistry();
+      const matched = registry.find(
+        (room) => normalizeInviteCode(room.inviteCode) === normalizeInviteCode(formattedInviteCode),
+      );
+      if (!matched) {
+        setJoinError('未找到该邀请码对应的房间，请先创建房间或确认输入无误。');
+        setPendingJoin(null);
+        return;
+      }
+      setInviteCode(matched.inviteCode);
+      setRoomName(matched.roomName);
+      setPendingJoin({
+        roomName: matched.roomName,
+        hostName: matched.hostName,
+        onlineCount: 1,
+      });
+      setJoinError('');
+      setAppState('confirm');
+    } catch {
+      setJoinError('邀请码无效或已过期，请确认输入无误。');
       setPendingJoin(null);
-      return;
     }
-    setRoomCode(matched.roomCode);
-    setRoomName(matched.roomName);
-    setPendingJoin({
-      roomName: matched.roomName,
-      hostName: matched.hostName,
-      onlineCount: 1,
-    });
-    setJoinError('');
-    setAppState('confirm');
   };
 
   const handleConfirmJoin = () => {
@@ -131,7 +167,7 @@ function App() {
         <div className="flex-1 flex justify-center items-center">
           <div className="bg-[#313338] p-8 rounded-xl shadow-2xl w-[480px] flex flex-col items-center text-center">
             <h2 className="text-2xl font-bold mb-2">加入语音频道</h2>
-            <p className="text-gray-400 text-sm mb-8">请输入 6 位房间口令 (字母与数字)</p>
+            <p className="text-gray-400 text-sm mb-8">请输入 16 位邀请码</p>
             <CodeInput onComplete={handleCodeComplete} />
             {joinError && <p className="text-red-400 text-sm mt-4">{joinError}</p>}
             <div className="w-full flex justify-between items-center mt-8">
@@ -150,11 +186,11 @@ function App() {
         <>
           <Sidebar
             roomName={roomName}
-            roomCode={roomCode}
+            inviteCode={inviteCode}
             currentUserName={currentUserName}
             members={members}
             isCurrentUserHost={currentUserIsHost}
-            onRegenerateCode={handleCreateRoom}
+            onRegenerateInviteCode={handleCreateRoom}
             onLocalMuteToggle={(id: string) => {
               setMembers((prev) =>
                 prev.map((member) => (member.id === id ? { ...member, localMuted: !member.localMuted } : member)),

@@ -3,34 +3,34 @@ import MemberItem, { Member } from './MemberItem';
 
 interface SidebarProps {
   roomName: string;
-  roomCode: string;
+  inviteCode: string;
   currentUserName: string;
   members: Member[];
   isCurrentUserHost: boolean;
-  onRegenerateCode: () => void;
+  onRegenerateInviteCode: () => void;
   onLocalMuteToggle: (id: string) => void;
   onVolumeChange: (id: string, volume: number) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   roomName,
-  roomCode,
+  inviteCode,
   currentUserName,
   members,
   isCurrentUserHost,
-  onRegenerateCode,
+  onRegenerateInviteCode,
   onLocalMuteToggle,
   onVolumeChange,
 }) => {
-  const handleRegenerateCode = (e: React.MouseEvent) => {
+  const handleRegenerateInviteCode = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onRegenerateCode();
+    onRegenerateInviteCode();
   };
 
-  const handleCopyCode = (e: React.MouseEvent) => {
+  const handleCopyInviteCode = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(roomCode);
-    alert('口令已复制！');
+    navigator.clipboard.writeText(inviteCode);
+    alert('邀请码已复制！');
   };
 
   return (
@@ -43,21 +43,21 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
         <div className="flex items-center justify-between bg-[#1e1f22] rounded-md px-3 py-2 border border-gray-700">
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-400">Code:</span>
-            <span className="text-lg text-white font-mono tracking-wider font-bold">{roomCode}</span>
+            <span className="text-xs text-gray-400">邀请码:</span>
+            <span className="text-lg text-white font-mono tracking-wider font-bold">{inviteCode}</span>
           </div>
           <div className="flex items-center space-x-2">
             <button 
-              onClick={handleCopyCode}
+              onClick={handleCopyInviteCode}
               className="text-gray-400 hover:text-white transition-colors"
-              title="复制口令"
+              title="复制邀请码"
             >
               📋
             </button>
             <button 
-              onClick={handleRegenerateCode}
+              onClick={handleRegenerateInviteCode}
               className="text-indigo-400 hover:text-indigo-300 transition-colors"
-              title="重新生成口令"
+              title="重新生成邀请码"
             >
               🔄
             </button>
