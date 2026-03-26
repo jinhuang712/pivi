@@ -14,31 +14,31 @@ describe('joinRoom', () => {
     expect(result.reachable).toBe(true);
   });
 
-  it('returns endpoint unreachable when all probe attempts fail', async () => {
-    const findRoomByInviteCode = vi.fn();
-
-    await expect(
-      resolveJoinRoom('AB12-CD34-EF56-GH78', {
-        findRoomByInviteCode,
-        prettifyInviteCodeImpl: vi.fn().mockResolvedValue('AB12-CD34-EF56-GH78'),
-        parseInviteCodeImpl: vi.fn().mockResolvedValue({
-          endpointScope: 'private-lan-ipv4',
-          joinMode: 'direct-host',
-          ipv4: '127.0.0.1',
-          port: 7788,
-          expirySlot: 500,
-        }),
-        probeRoomEndpointImpl: vi
-          .fn()
-          .mockResolvedValue({ reachable: false, failureKind: 'timeout', elapsedMs: 50 }),
+  it('falls back to relay when direct endpoint probing fails but room exists', async () => {
+    const result = await resolveJoinRoom('AB12-CD34-EF56-GH78', {
+      findRoomByInviteCode: () => ({
+        inviteCode: 'AB12-CD34-EF56-GH78',
+        roomName: '测试房间',
+        hostName: 'Host',
       }),
-    ).rejects.toMatchObject({
-      code: 'endpoint-unreachable',
-      message: '房主入口不可达，请检查网络或防火墙设置。',
+      prettifyInviteCodeImpl: vi.fn().mockResolvedValue('AB12-CD34-EF56-GH78'),
+      parseInviteCodeImpl: vi.fn().mockResolvedValue({
+        endpointScope: 'private-lan-ipv4',
+        joinMode: 'direct-host',
+        ipv4: '127.0.0.1',
+        port: 7788,
+        expirySlot: 500,
+      }),
+      probeRoomEndpointImpl: vi
+        .fn()
+        .mockResolvedValue({ reachable: false, failureKind: 'timeout', elapsedMs: 50 }),
     });
+
+    expect(result.networkPath).toBe('relay');
+    expect(result.resolutionNotice).toBe('房主直连入口不可达，已回退到中转模式。');
   });
 
-  it('returns room not found after probe succeeds', async () => {
+  it('returns room not found before opening confirm modal', async () => {
     await expect(
       resolveJoinRoom('AB12-CD34-EF56-GH78', {
         findRoomByInviteCode: () => undefined,
@@ -50,9 +50,7 @@ describe('joinRoom', () => {
           port: 7788,
           expirySlot: 500,
         }),
-        probeRoomEndpointImpl: vi
-          .fn()
-          .mockResolvedValue({ reachable: true, failureKind: null, elapsedMs: 20 }),
+        probeRoomEndpointImpl: vi.fn(),
       }),
     ).rejects.toMatchObject({
       code: 'room-not-found',

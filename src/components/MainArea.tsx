@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { RoomNetworkPath } from '../types/channel';
 import type { ChatMessage } from '../types/channel';
 
 interface MainAreaProps {
@@ -6,9 +7,18 @@ interface MainAreaProps {
   currentUserName: string;
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
+  networkPath?: RoomNetworkPath;
+  networkNotice?: string;
 }
 
-const MainArea: React.FC<MainAreaProps> = ({ onOpenSettings, currentUserName, messages, onSendMessage }) => {
+const MainArea: React.FC<MainAreaProps> = ({
+  onOpenSettings,
+  currentUserName,
+  messages,
+  onSendMessage,
+  networkPath = 'p2p',
+  networkNotice,
+}) => {
   const [isSharing, setIsSharing] = useState(false);
   const [isExpandedShare, setIsExpandedShare] = useState(false);
   const [quality, setQuality] = useState('1080p');
@@ -53,12 +63,20 @@ const MainArea: React.FC<MainAreaProps> = ({ onOpenSettings, currentUserName, me
         
         <div className="flex items-center space-x-4">
           <div 
-            className="flex items-center space-x-2 text-xs text-green-400 bg-[#2b2d31] px-2 py-1.5 rounded cursor-pointer hover:bg-[#1e1f22]" 
+            className={`flex items-center space-x-2 text-xs px-2 py-1.5 rounded cursor-pointer hover:bg-[#1e1f22] ${
+              networkPath === 'relay' ? 'text-amber-300 bg-amber-500/10' : 'text-green-400 bg-[#2b2d31]'
+            }`}
             title="点击展开/收起网络详情"
           >
             <span>Ping: 24ms</span>
             <span className="text-gray-500">|</span>
-            <span>P2P直连</span>
+            <span>{networkPath === 'relay' ? 'Relay中转' : 'P2P直连'}</span>
+            {networkNotice && (
+              <>
+                <span className="text-gray-500">|</span>
+                <span>{networkNotice}</span>
+              </>
+            )}
           </div>
         </div>
       </div>

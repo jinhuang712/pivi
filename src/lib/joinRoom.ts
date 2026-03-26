@@ -1,4 +1,5 @@
-import type { RoomSnapshot } from '../types/channel';
+import { RelayFallbackEngine } from '../media/relayFallback';
+import type { RoomNetworkPath, RoomSnapshot } from '../types/channel';
 import { parseInviteCode, prettifyInviteCode, probeRoomEndpoint, type EndpointProbeResult } from './inviteCode';
 
 const DEFAULT_PROBE_TIMEOUTS = [100, 200, 350];
@@ -7,7 +8,6 @@ export class JoinRoomResolutionError extends Error {
   constructor(
     public readonly code:
       | 'invalid-invite'
-      | 'endpoint-unreachable'
       | 'room-not-found',
     message: string,
   ) {
@@ -27,6 +27,8 @@ interface ResolveJoinRoomOptions {
 export interface ResolveJoinRoomResult {
   formattedInviteCode: string;
   room: RoomSnapshot;
+  networkPath: RoomNetworkPath;
+  resolutionNotice?: string;
 }
 
 export const resolveJoinRoom = async (
@@ -54,24 +56,30 @@ export const resolveJoinRoom = async (
     throw new JoinRoomResolutionError('invalid-invite', '邀请码无效或已过期，请确认输入无误。');
   }
 
+  const room = findRoomByInviteCode(formattedInviteCode);
+  if (!room) {
+    throw new JoinRoomResolutionError('room-not-found', '邀请码已解析，但房间尚未就绪，请稍后重试。');
+  }
+
   const lastProbe = await probeInviteEndpointWithRetry(
     parsedInvite.ipv4,
     parsedInvite.port,
     probeTimeouts,
     probeRoomEndpointImpl,
   );
-  if (!lastProbe.reachable) {
-    throw new JoinRoomResolutionError('endpoint-unreachable', mapProbeFailureToMessage(lastProbe));
-  }
-
-  const room = findRoomByInviteCode(formattedInviteCode);
-  if (!room) {
-    throw new JoinRoomResolutionError('room-not-found', '邀请码已解析，但房间尚未就绪，请稍后重试。');
+  if (!lastProbe.reachable && shouldFallbackToRelay(lastProbe)) {
+    return {
+      formattedInviteCode,
+      room,
+      networkPath: 'relay',
+      resolutionNotice: '房主直连入口不可达，已回退到中转模式。',
+    };
   }
 
   return {
     formattedInviteCode,
     room,
+    networkPath: 'p2p',
   };
 };
 
@@ -97,14 +105,13 @@ export const probeInviteEndpointWithRetry = async (
   return lastProbe;
 };
 
-const mapProbeFailureToMessage = (probe: EndpointProbeResult) => {
-  switch (probe.failureKind) {
-    case 'connection-refused':
-      return '房主入口暂未就绪，请稍后重试。';
-    case 'timeout':
-    case 'unreachable':
-      return '房主入口不可达，请检查网络或防火墙设置。';
-    default:
-      return '房主入口连接失败，请稍后重试。';
-  }
+const shouldFallbackToRelay = (probe: EndpointProbeResult) => {
+  const engine = new RelayFallbackEngine();
+  const decision = engine.processIceState({
+    peerId: 'host-runtime',
+    iceState: probe.reachable ? 'connected' : 'failed',
+    checkingElapsedMs: probe.elapsedMs,
+  });
+
+  return decision === 'switch_to_relay';
 };

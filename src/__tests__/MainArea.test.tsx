@@ -4,13 +4,20 @@ import MainArea from '../components/MainArea';
 import type { ChatMessage } from '../types/channel';
 
 describe('MainArea Component', () => {
-  const renderMainArea = (onOpenSettings = vi.fn(), messages: ChatMessage[] = []) =>
+  const renderMainArea = (
+    onOpenSettings = vi.fn(),
+    messages: ChatMessage[] = [],
+    networkPath: 'p2p' | 'relay' = 'p2p',
+    networkNotice?: string,
+  ) =>
     render(
       <MainArea
         onOpenSettings={onOpenSettings}
         currentUserName="HuangJin"
         messages={messages}
         onSendMessage={vi.fn()}
+        networkPath={networkPath}
+        networkNotice={networkNotice}
       />,
     );
 
@@ -19,6 +26,12 @@ describe('MainArea Component', () => {
     expect(screen.getByText(/房间聊天区/)).toBeInTheDocument();
     expect(screen.getByText(/Ping: 24ms/)).toBeInTheDocument();
     expect(screen.getByText(/P2P直连/)).toBeInTheDocument();
+  });
+
+  it('should render relay network status when fallback is active', () => {
+    renderMainArea(vi.fn(), [], 'relay', '房主直连入口不可达，已回退到中转模式。');
+    expect(screen.getByText(/Relay中转/)).toBeInTheDocument();
+    expect(screen.getByText(/房主直连入口不可达，已回退到中转模式。/)).toBeInTheDocument();
   });
 
   it('should render the screen share button', () => {

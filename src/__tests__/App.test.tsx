@@ -109,7 +109,7 @@ describe('App Phase 7 invite flow', () => {
     expect(screen.getByText('加入语音频道')).toBeInTheDocument();
   });
 
-  it('shows endpoint unreachable error after probe retries fail', async () => {
+  it('falls back to relay mode when direct endpoint probing fails', async () => {
     const firstRender = render(<App />);
 
     fireEvent.click(screen.getByText('创建新房间'));
@@ -131,7 +131,13 @@ describe('App Phase 7 invite flow', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('房主入口不可达，请检查网络或防火墙设置。')).toBeInTheDocument();
+      expect(screen.getByText('将以中转模式加入：房主直连入口不可达，已回退到中转模式。')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('确认加入'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Relay中转')).toBeInTheDocument();
     });
   });
 

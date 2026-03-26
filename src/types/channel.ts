@@ -14,10 +14,14 @@ export interface RoomSnapshot {
   hostName: string;
 }
 
+export type RoomNetworkPath = 'p2p' | 'relay';
+
 export interface JoinPreview {
   roomName: string;
   hostName: string;
   onlineCount: number;
+  networkPath: RoomNetworkPath;
+  resolutionNotice?: string;
 }
 
 export type RoomMember = Member;

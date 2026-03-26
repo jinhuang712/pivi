@@ -12,7 +12,7 @@ import {
   prepareRoomInvite,
 } from "./lib/inviteCode";
 import { JoinRoomResolutionError, resolveJoinRoom } from "./lib/joinRoom";
-import type { JoinPreview, RoomMember, RoomSnapshot, ChatMessage } from "./types/channel";
+import type { JoinPreview, RoomMember, RoomSnapshot, ChatMessage, RoomNetworkPath } from "./types/channel";
 
 const ROOM_REGISTRY_KEY = 'lvc_room_registry_v1';
 
@@ -51,6 +51,8 @@ function App() {
   const [pendingJoin, setPendingJoin] = useState<JoinPreview | null>(null);
   const [roomName, setRoomName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [networkPath, setNetworkPath] = useState<RoomNetworkPath>('p2p');
+  const [networkNotice, setNetworkNotice] = useState('');
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const currentUserName = useMemo(
@@ -98,6 +100,8 @@ function App() {
       );
       setInviteCode(preparedInvite.inviteCode);
       setRoomName(newRoomName);
+      setNetworkPath('p2p');
+      setNetworkNotice(preparedInvite.reusedLastSuccessfulPort ? '已复用上次成功端口' : '');
       setJoinError('');
       setMembers([
         {
@@ -132,6 +136,8 @@ function App() {
         roomName: resolvedJoin.room.roomName,
         hostName: resolvedJoin.room.hostName,
         onlineCount: 1,
+        networkPath: resolvedJoin.networkPath,
+        resolutionNotice: resolvedJoin.resolutionNotice,
       });
       setJoinError('');
       setAppState('confirm');
@@ -147,6 +153,8 @@ function App() {
 
   const handleConfirmJoin = () => {
     const hostName = pendingJoin?.hostName || 'Host';
+    setNetworkPath(pendingJoin?.networkPath ?? 'p2p');
+    setNetworkNotice(pendingJoin?.resolutionNotice ?? '');
     setMembers([
       {
         id: 'host-runtime',
@@ -224,6 +232,8 @@ function App() {
             onOpenSettings={() => setIsSettingsOpen(true)}
             currentUserName={currentUserName}
             messages={messages}
+            networkPath={networkPath}
+            networkNotice={networkNotice}
             onSendMessage={(content: string) => {
               const newMessage: ChatMessage = {
                 id: Date.now().toString(),
@@ -243,6 +253,8 @@ function App() {
         roomName={pendingJoin?.roomName || roomName}
         onlineCount={pendingJoin?.onlineCount || 1}
         hostName={pendingJoin?.hostName || 'Host'}
+        networkPath={pendingJoin?.networkPath}
+        resolutionNotice={pendingJoin?.resolutionNotice}
         onCancel={() => setAppState('join')}
         onConfirm={handleConfirmJoin}
       />

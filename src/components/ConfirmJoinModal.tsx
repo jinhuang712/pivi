@@ -1,10 +1,13 @@
 import React from 'react';
+import type { RoomNetworkPath } from '../types/channel';
 
 interface ConfirmJoinModalProps {
   isOpen: boolean;
   roomName: string;
   onlineCount: number;
   hostName: string;
+  networkPath?: RoomNetworkPath;
+  resolutionNotice?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -14,6 +17,8 @@ const ConfirmJoinModal: React.FC<ConfirmJoinModalProps> = ({
   roomName,
   onlineCount,
   hostName,
+  networkPath = 'p2p',
+  resolutionNotice,
   onConfirm,
   onCancel,
 }) => {
@@ -30,6 +35,16 @@ const ConfirmJoinModal: React.FC<ConfirmJoinModalProps> = ({
         <p className="text-gray-400 text-sm mb-6">
           当前在线：{onlineCount} 人 | 房主：{hostName}
         </p>
+        <div
+          className={`text-xs rounded-md px-3 py-2 mb-6 ${
+            networkPath === 'relay'
+              ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
+              : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
+          }`}
+        >
+          {networkPath === 'relay' ? '将以中转模式加入' : '将以 P2P 直连模式加入'}
+          {resolutionNotice ? `：${resolutionNotice}` : ''}
+        </div>
 
         <div className="flex space-x-4">
           <button
