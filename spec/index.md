@@ -33,8 +33,10 @@
   - [detailed-prd.md](./07-product-design/detailed-prd.md)
 - **08-technical-design/**: 详细技术方案与底层实现设计
   - [detailed-tech-design.md](./08-technical-design/detailed-tech-design.md)
+  - [hotkeys-global.md](./08-technical-design/hotkeys-global.md)
 - **09-testing/**: TDD 测试策略与用例定义
   - [test-strategy.md](./09-testing/test-strategy.md)
+  - [test-hotkeys.md](./09-testing/test-hotkeys.md)
 
 ## 阅读顺序建议
 
