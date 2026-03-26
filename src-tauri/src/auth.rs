@@ -92,6 +92,6 @@ mod tests {
     #[test]
     fn create_gate_with_invalid_code_should_fail() {
         let gate = HostAuthGate::new("A9B2");
-        assert_eq!(gate, Err(AuthError::InvalidRoomCode));
+        assert!(matches!(gate, Err(AuthError::InvalidRoomCode)));
     }
 }

@@ -87,3 +87,14 @@
   - 步骤 1：调用 `getUserMedia`，UI 状态变为“采集中”。
   - 步骤 2：输入/输出下拉列表出现对应设备项。
   - 步骤 3：重新调用设备枚举并刷新列表。
+
+### [TC-MEDIA-09] 远端音频绑定与本地/全局闭麦控制
+- **描述**：远端流应绑定到 `<audio>`，并支持本地屏蔽与房主全局闭麦轨道控制。
+- **测试步骤**：
+  1. 将远端 `MediaStream` 绑定至指定成员的 `<audio>` 元素。
+  2. 将成员本地音量设置为 35%，并切换本地屏蔽。
+  3. 对本地采集轨道执行 Server Mute 开启/关闭。
+- **预期结果**：
+  - 步骤 1：`audio.srcObject` 等于目标 `MediaStream`。
+  - 步骤 2：`audio.volume` 对应 0.35，`audio.muted` 可切换为 `true`。
+  - 步骤 3：`localAudioTrack.enabled` 随 mute 状态在 `false/true` 间切换。
