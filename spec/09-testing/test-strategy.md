@@ -42,6 +42,7 @@
 - 频道主页中置控制条的交互测试（共享状态切换、麦克风开关、麦克风音量滑杆、扬声器开关、扬声器音量滑杆、设置入口触发）。
 
 ### 🖼️ [3. DataChannel 与大文件分片测试用例](./test-datachannel.md)
+- 可靠 DataChannel 通道创建（ordered/protocol）与 readyState 门禁。
 - 大图片 (5MB) 的二进制分片 (Chunking) 算法。
 - 接收端的 ArrayBuffer 拼接与 Blob 生成。
 - 超大文件拦截与并发控制边界测试。

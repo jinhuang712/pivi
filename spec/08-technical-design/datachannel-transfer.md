@@ -66,3 +66,14 @@ sequenceDiagram
 ## 4. 边界与并发限制
 - **并发发送限制**：DataChannel 队列中同一时间最多允许 2 个文件处于传输中状态。
 - **内存防爆**：接收端需设置超时机制（如 30 秒内未收齐 `totalChunks`），则丢弃已接收的该 `fileId` 下的所有内存块，防止残缺文件堆积导致 OOM。
+
+## 5. 高可靠 DataChannel 通道骨架（Phase 5.1）
+
+- **建链方式**：每个 PeerConnection 创建一个默认可靠通道 `chat-reliable`。
+- **默认参数**：
+  - `ordered: true`
+  - `protocol: "json+binary"`
+- **发送策略**：
+  - 通道状态为 `open` 时允许发送文本与二进制。
+  - 状态非 `open` 时拒绝发送并返回失败状态，避免消息静默丢失。
+- **通道关闭**：提供显式 `close()` 以便在会话销毁时释放资源。
