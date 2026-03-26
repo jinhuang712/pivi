@@ -1,0 +1,80 @@
+name: github-release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run tauri:build:macos
+      - run: |
+          mkdir -p release-assets
+          VERSION_NO_V="${VERSION#v}"
+          DMG_FILE="$(find src-tauri/target/release/bundle -type f -name '*.dmg' | head -n 1)"
+          cp "$DMG_FILE" "release-assets/Pivi-${VERSION_NO_V}-macos.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-release-assets
+          path: release-assets/*
+
+  build-windows:
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run tauri:build:windows
+      - shell: pwsh
+        run: |
+          $version = $env:VERSION.TrimStart('v')
+          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
+          $portableExe = Get-ChildItem src-tauri/target/release/pivi.exe | Select-Object -First 1
+          $installerExe = Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1
+          $msi = Get-ChildItem src-tauri/target/release/bundle/msi/*.msi | Select-Object -First 1
+          Copy-Item $portableExe.FullName "release-assets/Pivi-$version-windows-portable.exe"
+          Copy-Item $installerExe.FullName "release-assets/Pivi-$version-windows.exe"
+          Copy-Item $msi.FullName "release-assets/Pivi-$version-windows.msi"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-assets
+          path: release-assets/*
+
+  publish-release:
+    runs-on: ubuntu-latest
+    needs:
+      - build-macos
+      - build-windows
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          find release-assets -type f | sort
+          mapfile -t assets < <(find release-assets -type f | sort)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${assets[@]}" --clobber
+          else
+            gh release create "$TAG" "${assets[@]}" --title "Pivi $TAG" --generate-notes
+          fi
