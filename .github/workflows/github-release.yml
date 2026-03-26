@@ -69,12 +69,13 @@ jobs:
           path: release-assets
       - env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: |
           find release-assets -type f | sort
           mapfile -t assets < <(find release-assets -type f | sort)
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "${assets[@]}" --clobber
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${assets[@]}" --repo "$REPO" --clobber
           else
-            gh release create "$TAG" "${assets[@]}" --title "Pivi $TAG" --generate-notes
+            gh release create "$TAG" "${assets[@]}" --repo "$REPO" --title "Pivi $TAG" --generate-notes
           fi
