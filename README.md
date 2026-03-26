@@ -62,8 +62,13 @@ Rust 侧测试命令（环境需安装 Rust/Cargo）：
 
 ## 安装与打包（预留）
 
+当前可用命令：
+- macOS 打包（`.app` + `.dmg`）：
+  - `npm run tauri:build:macos`
+
+详细交付说明：
+- [spec/06-delivery/macos-build.md](./spec/06-delivery/macos-build.md)
+
 后续将在本 README 持续补充：
-- 本地运行环境准备（Node / Rust / Tauri 前置）
-- macOS 打包流程（`.dmg`）
 - Windows 打包流程（`.exe`）
 - 常见故障排查与网络连通建议
