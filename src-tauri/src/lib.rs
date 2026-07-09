@@ -16,6 +16,8 @@ pub mod hotkeys;
 
 use std::net::{Ipv4Addr, UdpSocket};
 
+use tauri::{Emitter, Manager};
+
 use control_runtime::{
     request_remote_join_room, request_remote_relay_signal, request_remote_room_events,
     request_remote_room_state,
@@ -404,7 +406,20 @@ pub fn run() {
         .manage(HostRuntimeSessionManager::default())
         .manage(RoomPreparationState::default())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    let state = app.state::<HotkeyState>();
+                    if let Some(config) = state.get() {
+                        if let Some(hotkey_event) =
+                            hotkeys::build_hotkey_event(&config, shortcut, event.state)
+                        {
+                            let _ = app.emit("pivi-hotkey", hotkey_event);
+                        }
+                    }
+                })
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![
             greet,
             bind_global_hotkeys,
