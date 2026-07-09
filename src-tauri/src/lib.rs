@@ -19,9 +19,9 @@ use std::net::{Ipv4Addr, UdpSocket};
 use tauri::{Emitter, Manager};
 
 use control_runtime::{
-    request_remote_join_room, request_remote_relay_signal, request_remote_room_events,
-    request_remote_room_state,
-    spawn_control_runtime_listener,
+    request_remote_ban, request_remote_join_room, request_remote_kick,
+    request_remote_relay_signal, request_remote_room_events, request_remote_room_state,
+    request_remote_server_mute, request_remote_transfer_host, spawn_control_runtime_listener,
 };
 use host_runtime_session::HostRuntimeSessionManager;
 use hotkeys::{register_global_hotkeys, unregister_global_hotkeys, HotkeyState};
@@ -383,6 +383,74 @@ fn ban_host_runtime_member(
         .map_err(|err| format!("{err:?}"))
 }
 
+#[tauri::command]
+fn transfer_host_runtime_member(
+    state: tauri::State<'_, HostRuntimeSessionManager>,
+    room_id: String,
+    new_host_id: String,
+) -> Result<host_runtime_session::RoomRuntimeEvent, String> {
+    state
+        .transfer_host(&room_id, &new_host_id)
+        .map_err(|err| format!("{err:?}"))
+}
+
+#[tauri::command]
+fn transfer_host_remote_runtime_member(
+    ipv4: String,
+    port: u16,
+    room_id: String,
+    host_member_id: String,
+    new_host_id: String,
+) -> Result<host_runtime_session::RoomRuntimeEvent, String> {
+    let ipv4 = ipv4
+        .parse()
+        .map_err(|_| format!("invalid ipv4 address: {ipv4}"))?;
+    request_remote_transfer_host(ipv4, port, &room_id, &host_member_id, &new_host_id)
+}
+
+#[tauri::command]
+fn server_mute_remote_runtime_member(
+    ipv4: String,
+    port: u16,
+    room_id: String,
+    host_member_id: String,
+    member_id: String,
+    server_muted: bool,
+) -> Result<host_runtime_session::RoomRuntimeEvent, String> {
+    let ipv4 = ipv4
+        .parse()
+        .map_err(|_| format!("invalid ipv4 address: {ipv4}"))?;
+    request_remote_server_mute(ipv4, port, &room_id, &host_member_id, &member_id, server_muted)
+}
+
+#[tauri::command]
+fn kick_remote_runtime_member(
+    ipv4: String,
+    port: u16,
+    room_id: String,
+    host_member_id: String,
+    member_id: String,
+) -> Result<host_runtime_session::RoomRuntimeEvent, String> {
+    let ipv4 = ipv4
+        .parse()
+        .map_err(|_| format!("invalid ipv4 address: {ipv4}"))?;
+    request_remote_kick(ipv4, port, &room_id, &host_member_id, &member_id)
+}
+
+#[tauri::command]
+fn ban_remote_runtime_member(
+    ipv4: String,
+    port: u16,
+    room_id: String,
+    host_member_id: String,
+    member_id: String,
+) -> Result<host_runtime_session::RoomRuntimeEvent, String> {
+    let ipv4 = ipv4
+        .parse()
+        .map_err(|_| format!("invalid ipv4 address: {ipv4}"))?;
+    request_remote_ban(ipv4, port, &room_id, &host_member_id, &member_id)
+}
+
 fn parse_endpoint_scope(value: &str) -> Result<InviteEndpointScope, String> {
     match value {
         "private-lan-ipv4" => Ok(InviteEndpointScope::PrivateLanIpv4),
@@ -477,7 +545,12 @@ pub fn run() {
             get_host_runtime_ready,
             server_mute_host_runtime_member,
             kick_host_runtime_member,
-            ban_host_runtime_member
+            ban_host_runtime_member,
+            transfer_host_runtime_member,
+            transfer_host_remote_runtime_member,
+            server_mute_remote_runtime_member,
+            kick_remote_runtime_member,
+            ban_remote_runtime_member
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

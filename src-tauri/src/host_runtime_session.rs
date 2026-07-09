@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::auth::HostAuthGate;
 use crate::room_broadcast::{MemberSnapshot, RoomBroadcastBuilder, RoomBroadcastMessage};
-use crate::room_state::RoomState;
+use crate::room_state::{RoomState, RoomStateError};
 use crate::webrtc_router::{WebRtcRelayRouter, WebRtcSignal, WebRtcSignalType};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -380,6 +380,48 @@ impl HostRuntimeSessionManager {
         session.events.push(event.clone());
         Ok(event)
     }
+
+    /// Transfers the host role to another member and broadcasts `HostChanged`.
+    /// The runtime-owning process does not move (that is a larger follow-on);
+    /// whoever holds the Host role after this can manage the room over the
+    /// control plane via the host-authority-gated requests.
+    pub fn transfer_host(
+        &self,
+        room_id: &str,
+        new_host_id: &str,
+    ) -> Result<RoomRuntimeEvent, HostRuntimeSessionError> {
+        let mut sessions = self.sessions.lock().unwrap();
+        let session = sessions
+            .get_mut(room_id)
+            .ok_or(HostRuntimeSessionError::RoomNotFound)?;
+        let previous_host = session
+            .room
+            .transfer_host(new_host_id)
+            .map_err(|err| match err {
+                RoomStateError::MemberNotFound => HostRuntimeSessionError::MemberNotFound,
+                _ => HostRuntimeSessionError::MemberNotFound,
+            })?;
+        let event = RoomRuntimeEvent {
+            sequence: session.next_sequence,
+            target_member_id: None,
+            message: ControlRuntimeMessage::RoomBroadcast(
+                RoomBroadcastBuilder::build_host_changed(&previous_host, new_host_id),
+            ),
+        };
+        session.next_sequence += 1;
+        session.events.push(event.clone());
+        Ok(event)
+    }
+
+    /// Authority check used by the control plane: is `member_id` the current
+    /// host of `room_id`? Host-management requests are rejected unless this holds.
+    pub fn is_host(&self, room_id: &str, member_id: &str) -> bool {
+        let sessions = self.sessions.lock().unwrap();
+        sessions
+            .get(room_id)
+            .map(|session| session.room.host_id == member_id)
+            .unwrap_or(false)
+    }
 }
 
 fn extract_members_from_room_state(message: RoomBroadcastMessage) -> Vec<MemberSnapshot> {
@@ -689,6 +731,50 @@ mod tests {
         );
         assert_eq!(
             manager.server_mute_member("room-a", "nobody", true),
+            Err(HostRuntimeSessionError::MemberNotFound)
+        );
+    }
+
+    #[test]
+    fn transfer_host_should_broadcast_and_flip_authority() {
+        let manager = two_member_session();
+
+        let event = manager.transfer_host("room-a", "user-2").unwrap();
+        assert!(event.target_member_id.is_none(), "HostChanged is a broadcast");
+
+        assert!(!manager.is_host("room-a", "host-1"), "old host lost authority");
+        assert!(manager.is_host("room-a", "user-2"), "new host gained authority");
+
+        let host_events = manager
+            .get_events_since_for_member("room-a", Some("host-1"), 0)
+            .unwrap();
+        assert!(
+            host_events.iter().any(|event| matches!(
+                &event.message,
+                ControlRuntimeMessage::RoomBroadcast(RoomBroadcastMessage::HostChanged {
+                    previous_host_id,
+                    new_host_id,
+                }) if previous_host_id == "host-1" && new_host_id == "user-2"
+            )),
+            "should broadcast HostChanged"
+        );
+
+        let state = manager.get_room_state("room-a").unwrap();
+        if let RoomBroadcastMessage::RoomState { members, .. } = state {
+            let user = members.iter().find(|m| m.member_id == "user-2").unwrap();
+            let host = members.iter().find(|m| m.member_id == "host-1").unwrap();
+            assert_eq!(user.role, "Host");
+            assert_eq!(host.role, "Member");
+        } else {
+            panic!("expected room state");
+        }
+    }
+
+    #[test]
+    fn transfer_host_to_unknown_member_should_error() {
+        let manager = two_member_session();
+        assert_eq!(
+            manager.transfer_host("room-a", "nobody"),
             Err(HostRuntimeSessionError::MemberNotFound)
         );
     }

@@ -36,6 +36,30 @@ pub enum ControlRuntimeRequest {
         user_id: String,
         display_name: String,
     },
+    /// Host-authority requests. `host_member_id` is the member claiming to be
+    /// host; the runtime rejects the request unless they actually hold the
+    /// Host role, so a non-host joiner cannot kick/mute/ban/transfer.
+    ServerMute {
+        room_id: String,
+        host_member_id: String,
+        member_id: String,
+        server_muted: bool,
+    },
+    Kick {
+        room_id: String,
+        host_member_id: String,
+        member_id: String,
+    },
+    Ban {
+        room_id: String,
+        host_member_id: String,
+        member_id: String,
+    },
+    TransferHost {
+        room_id: String,
+        host_member_id: String,
+        new_host_id: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -108,6 +132,83 @@ pub fn handle_control_runtime_request(
                 code: "join-rejected".to_string(),
                 message: "join rejected by runtime".to_string(),
             }),
+        ControlRuntimeRequest::ServerMute {
+            room_id,
+            host_member_id,
+            member_id,
+            server_muted,
+        } => {
+            if !manager.is_host(&room_id, &host_member_id) {
+                return ControlRuntimeResponse::Error {
+                    code: "not-host".to_string(),
+                    message: "only the host may manage members".to_string(),
+                };
+            }
+            manager
+                .server_mute_member(&room_id, &member_id, server_muted)
+                .map(|event| ControlRuntimeResponse::SignalAccepted { event })
+                .unwrap_or_else(|_| ControlRuntimeResponse::Error {
+                    code: "member-not-found".to_string(),
+                    message: "member not found".to_string(),
+                })
+        }
+        ControlRuntimeRequest::Kick {
+            room_id,
+            host_member_id,
+            member_id,
+        } => {
+            if !manager.is_host(&room_id, &host_member_id) {
+                return ControlRuntimeResponse::Error {
+                    code: "not-host".to_string(),
+                    message: "only the host may manage members".to_string(),
+                };
+            }
+            manager
+                .kick_member(&room_id, &member_id)
+                .map(|event| ControlRuntimeResponse::SignalAccepted { event })
+                .unwrap_or_else(|_| ControlRuntimeResponse::Error {
+                    code: "member-not-found".to_string(),
+                    message: "member not found".to_string(),
+                })
+        }
+        ControlRuntimeRequest::Ban {
+            room_id,
+            host_member_id,
+            member_id,
+        } => {
+            if !manager.is_host(&room_id, &host_member_id) {
+                return ControlRuntimeResponse::Error {
+                    code: "not-host".to_string(),
+                    message: "only the host may manage members".to_string(),
+                };
+            }
+            manager
+                .ban_member(&room_id, &member_id)
+                .map(|event| ControlRuntimeResponse::SignalAccepted { event })
+                .unwrap_or_else(|_| ControlRuntimeResponse::Error {
+                    code: "member-not-found".to_string(),
+                    message: "member not found".to_string(),
+                })
+        }
+        ControlRuntimeRequest::TransferHost {
+            room_id,
+            host_member_id,
+            new_host_id,
+        } => {
+            if !manager.is_host(&room_id, &host_member_id) {
+                return ControlRuntimeResponse::Error {
+                    code: "not-host".to_string(),
+                    message: "only the host may transfer host".to_string(),
+                };
+            }
+            manager
+                .transfer_host(&room_id, &new_host_id)
+                .map(|event| ControlRuntimeResponse::SignalAccepted { event })
+                .unwrap_or_else(|_| ControlRuntimeResponse::Error {
+                    code: "member-not-found".to_string(),
+                    message: "target member not found".to_string(),
+                })
+        }
     }
 }
 
@@ -217,6 +318,99 @@ pub fn request_remote_join_room(
         },
     )? {
         ControlRuntimeResponse::JoinAccepted { accepted } => Ok(accepted),
+        ControlRuntimeResponse::Error { message, .. } => Err(message),
+        _ => Err("unexpected control runtime response".to_string()),
+    }
+}
+
+/// Remote host-management. The host (by role) may be a joiner connected to the
+/// runtime-owning host, so these go over the control plane with an authority
+/// check (`host_member_id` must be the current host).
+pub fn request_remote_server_mute(
+    host: Ipv4Addr,
+    port: u16,
+    room_id: &str,
+    host_member_id: &str,
+    member_id: &str,
+    server_muted: bool,
+) -> Result<RoomRuntimeEvent, String> {
+    match send_control_runtime_request(
+        host,
+        port,
+        ControlRuntimeRequest::ServerMute {
+            room_id: room_id.to_string(),
+            host_member_id: host_member_id.to_string(),
+            member_id: member_id.to_string(),
+            server_muted,
+        },
+    )? {
+        ControlRuntimeResponse::SignalAccepted { event } => Ok(event),
+        ControlRuntimeResponse::Error { message, .. } => Err(message),
+        _ => Err("unexpected control runtime response".to_string()),
+    }
+}
+
+pub fn request_remote_kick(
+    host: Ipv4Addr,
+    port: u16,
+    room_id: &str,
+    host_member_id: &str,
+    member_id: &str,
+) -> Result<RoomRuntimeEvent, String> {
+    match send_control_runtime_request(
+        host,
+        port,
+        ControlRuntimeRequest::Kick {
+            room_id: room_id.to_string(),
+            host_member_id: host_member_id.to_string(),
+            member_id: member_id.to_string(),
+        },
+    )? {
+        ControlRuntimeResponse::SignalAccepted { event } => Ok(event),
+        ControlRuntimeResponse::Error { message, .. } => Err(message),
+        _ => Err("unexpected control runtime response".to_string()),
+    }
+}
+
+pub fn request_remote_ban(
+    host: Ipv4Addr,
+    port: u16,
+    room_id: &str,
+    host_member_id: &str,
+    member_id: &str,
+) -> Result<RoomRuntimeEvent, String> {
+    match send_control_runtime_request(
+        host,
+        port,
+        ControlRuntimeRequest::Ban {
+            room_id: room_id.to_string(),
+            host_member_id: host_member_id.to_string(),
+            member_id: member_id.to_string(),
+        },
+    )? {
+        ControlRuntimeResponse::SignalAccepted { event } => Ok(event),
+        ControlRuntimeResponse::Error { message, .. } => Err(message),
+        _ => Err("unexpected control runtime response".to_string()),
+    }
+}
+
+pub fn request_remote_transfer_host(
+    host: Ipv4Addr,
+    port: u16,
+    room_id: &str,
+    host_member_id: &str,
+    new_host_id: &str,
+) -> Result<RoomRuntimeEvent, String> {
+    match send_control_runtime_request(
+        host,
+        port,
+        ControlRuntimeRequest::TransferHost {
+            room_id: room_id.to_string(),
+            host_member_id: host_member_id.to_string(),
+            new_host_id: new_host_id.to_string(),
+        },
+    )? {
+        ControlRuntimeResponse::SignalAccepted { event } => Ok(event),
         ControlRuntimeResponse::Error { message, .. } => Err(message),
         _ => Err("unexpected control runtime response".to_string()),
     }
@@ -469,5 +663,70 @@ mod tests {
             }
             _ => panic!("expected signal accepted response"),
         }
+    }
+
+    fn runtime_with_two_members() -> HostRuntimeSessionManager {
+        let manager = HostRuntimeSessionManager::default();
+        let invite_code = build_invite_code(7788);
+        manager
+            .start_host_session(
+                "room-a",
+                "host-1",
+                "HuangJin",
+                &invite_code,
+                0,
+                "192.168.31.10",
+                7788,
+                Ipv4Addr::new(192, 168, 31, 10),
+            )
+            .unwrap();
+        manager
+            .join_host_session("room-a", &invite_code, 0, "user-2", "Player B")
+            .unwrap();
+        manager
+    }
+
+    #[test]
+    fn kick_request_should_be_rejected_for_non_host() {
+        let manager = runtime_with_two_members();
+
+        let response = handle_control_runtime_request(
+            &manager,
+            ControlRuntimeRequest::Kick {
+                room_id: "room-a".to_string(),
+                host_member_id: "user-2".to_string(),
+                member_id: "host-1".to_string(),
+            },
+        );
+
+        match response {
+            ControlRuntimeResponse::Error { code, .. } => assert_eq!(code, "not-host"),
+            _ => panic!("a non-host must not be able to kick"),
+        }
+        // the room is unchanged
+        assert!(manager.is_host("room-a", "host-1"));
+    }
+
+    #[test]
+    fn transfer_host_request_should_authorize_for_current_host() {
+        let manager = runtime_with_two_members();
+
+        let response = handle_control_runtime_request(
+            &manager,
+            ControlRuntimeRequest::TransferHost {
+                room_id: "room-a".to_string(),
+                host_member_id: "host-1".to_string(),
+                new_host_id: "user-2".to_string(),
+            },
+        );
+
+        match response {
+            ControlRuntimeResponse::SignalAccepted { event } => {
+                assert!(event.target_member_id.is_none(), "HostChanged is broadcast");
+            }
+            _ => panic!("expected signal accepted response"),
+        }
+        assert!(manager.is_host("room-a", "user-2"));
+        assert!(!manager.is_host("room-a", "host-1"));
     }
 }

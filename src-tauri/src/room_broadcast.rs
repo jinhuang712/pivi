@@ -25,6 +25,9 @@ pub enum RoomBroadcastMessage {
     /// or ban apart from a voluntary leave. Other members learn about the
     /// departure through the usual `MemberLeft` broadcast.
     MemberRemoved { member_id: String, reason: String },
+    /// Broadcast when the host role is transferred. Everyone updates member
+    /// roles from the fresh room state.
+    HostChanged { previous_host_id: String, new_host_id: String },
 }
 
 pub struct RoomBroadcastBuilder;
@@ -64,6 +67,13 @@ impl RoomBroadcastBuilder {
         RoomBroadcastMessage::MemberRemoved {
             member_id: member_id.to_string(),
             reason: reason.to_string(),
+        }
+    }
+
+    pub fn build_host_changed(previous_host_id: &str, new_host_id: &str) -> RoomBroadcastMessage {
+        RoomBroadcastMessage::HostChanged {
+            previous_host_id: previous_host_id.to_string(),
+            new_host_id: new_host_id.to_string(),
         }
     }
 
@@ -163,6 +173,21 @@ mod tests {
                 reason: "kicked".to_string(),
             }
         );
+    }
+
+    #[test]
+    fn build_host_changed_should_carry_both_host_ids() {
+        assert_eq!(
+            RoomBroadcastBuilder::build_host_changed("host-1", "user-a"),
+            RoomBroadcastMessage::HostChanged {
+                previous_host_id: "host-1".to_string(),
+                new_host_id: "user-a".to_string(),
+            }
+        );
+        let v = serde_json::to_value(RoomBroadcastBuilder::build_host_changed("host-1", "user-a")).unwrap();
+        assert_eq!(v["type"], "HostChanged");
+        assert!(v["payload"].get("previousHostId").is_some(), "previousHostId: {v}");
+        assert!(v["payload"].get("newHostId").is_some(), "newHostId: {v}");
     }
 
     #[test]

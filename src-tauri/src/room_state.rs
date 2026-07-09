@@ -37,6 +37,7 @@ pub struct RoomState {
 pub enum RoomStateError {
     DuplicateMember,
     HostCannotLeave,
+    MemberNotFound,
 }
 
 impl RoomState {
@@ -113,6 +114,27 @@ impl RoomState {
         let previous = member.server_muted;
         member.server_muted = server_muted;
         Some(previous)
+    }
+
+    /// Promotes `new_host_id` to Host and demotes the current host to Member.
+    /// Returns the previous host id. Transferring to the current host (or to a
+    /// non-existent member) is handled gracefully.
+    pub fn transfer_host(&mut self, new_host_id: &str) -> Result<String, RoomStateError> {
+        let previous_host = self.host_id.clone();
+        if new_host_id == previous_host {
+            return Ok(previous_host);
+        }
+        if !self.members.contains_key(new_host_id) {
+            return Err(RoomStateError::MemberNotFound);
+        }
+        if let Some(previous) = self.members.get_mut(&previous_host) {
+            previous.role = MemberRole::Member;
+        }
+        if let Some(new_host) = self.members.get_mut(new_host_id) {
+            new_host.role = MemberRole::Host;
+        }
+        self.host_id = new_host_id.to_string();
+        Ok(previous_host)
     }
 }
 
@@ -202,5 +224,39 @@ mod tests {
     fn set_server_muted_should_return_none_for_unknown_member() {
         let mut room = RoomState::new("A9B2K8", "host-1", "HuangJin");
         assert!(room.set_server_muted("nobody", true).is_none());
+    }
+
+    #[test]
+    fn transfer_host_should_promote_member_and_demote_old_host() {
+        let mut room = RoomState::new("A9B2K8", "host-1", "HuangJin");
+        room.add_member("user-a", "Player A").unwrap();
+
+        let previous = room.transfer_host("user-a").unwrap();
+        assert_eq!(previous, "host-1");
+        assert_eq!(room.host_id, "user-a");
+
+        let members = room.members_snapshot();
+        let new_host = members.iter().find(|m| m.member_id == "user-a").unwrap();
+        let old_host = members.iter().find(|m| m.member_id == "host-1").unwrap();
+        assert_eq!(new_host.role, MemberRole::Host);
+        assert_eq!(old_host.role, MemberRole::Member);
+    }
+
+    #[test]
+    fn transfer_host_to_unknown_member_should_fail() {
+        let mut room = RoomState::new("A9B2K8", "host-1", "HuangJin");
+        assert_eq!(
+            room.transfer_host("nobody"),
+            Err(RoomStateError::MemberNotFound)
+        );
+    }
+
+    #[test]
+    fn transfer_host_to_self_should_be_a_noop() {
+        let mut room = RoomState::new("A9B2K8", "host-1", "HuangJin");
+        room.add_member("user-a", "Player A").unwrap();
+        let previous = room.transfer_host("host-1").unwrap();
+        assert_eq!(previous, "host-1");
+        assert_eq!(room.host_id, "host-1");
     }
 }
