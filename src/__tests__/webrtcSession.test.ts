@@ -164,4 +164,57 @@ describe('createWebRtcSession', () => {
     expect(session.sendChat('outgoing-frame')).toBe(true);
     expect(chatChannel.send).toHaveBeenCalledWith('outgoing-frame');
   });
+
+  it('renegotiates when a track is added mid-session', async () => {
+    const pc = createFakePeerConnection();
+    const sendSignal = vi.fn(async () => {});
+    const session = createWebRtcSession({
+      selfId: 'h',
+      peerId: 'u',
+      roomId: 'r',
+      createPeerConnection: () => pc,
+      sendSignal,
+    });
+    await session.startOffer();
+    sendSignal.mockClear();
+    (pc.createOffer as ReturnType<typeof vi.fn>).mockClear();
+
+    const videoTrack = { kind: 'video' } as unknown as MediaStreamTrack;
+    const screenStream = { id: 'screen' } as unknown as MediaStream;
+    await session.addTrack(videoTrack, screenStream);
+
+    expect((pc as { addTrack: ReturnType<typeof vi.fn> }).addTrack).toHaveBeenCalledWith(
+      videoTrack,
+      screenStream,
+    );
+    expect(pc.createOffer).toHaveBeenCalled();
+    expect(sendSignal).toHaveBeenCalled();
+    const calls = sendSignal.mock.calls as unknown as { signalType: string }[][];
+    const last = calls[calls.length - 1];
+    expect(last?.[0]?.signalType).toBe('Offer');
+  });
+
+  it('routes video tracks to onRemoteScreen and audio to onRemoteStream', async () => {
+    const pc = createFakePeerConnection();
+    const onRemoteStream = vi.fn();
+    const onRemoteScreen = vi.fn();
+    const session = createWebRtcSession({
+      selfId: 'h',
+      peerId: 'u',
+      roomId: 'r',
+      createPeerConnection: () => pc,
+      onRemoteStream,
+      onRemoteScreen,
+      sendSignal: vi.fn(async () => {}),
+    });
+    await session.startOffer();
+
+    const audioStream = { id: 'a' } as unknown as MediaStream;
+    const screenStream = { id: 'v' } as unknown as MediaStream;
+    (pc as { ontrack: (e: unknown) => void }).ontrack({ streams: [audioStream], track: { kind: 'audio' } });
+    (pc as { ontrack: (e: unknown) => void }).ontrack({ streams: [screenStream], track: { kind: 'video' } });
+
+    expect(onRemoteStream).toHaveBeenCalledWith(audioStream);
+    expect(onRemoteScreen).toHaveBeenCalledWith(screenStream);
+  });
 });

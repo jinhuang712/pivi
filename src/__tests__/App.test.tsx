@@ -169,6 +169,7 @@ vi.mock('../media/webrtcSession', () => ({
     startOffer: vi.fn(async () => {}),
     handleSignal: vi.fn(async () => {}),
     sendChat: vi.fn(() => true),
+    addTrack: vi.fn(async () => {}),
     close: vi.fn(),
   })),
 }));

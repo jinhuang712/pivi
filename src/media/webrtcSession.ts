@@ -30,6 +30,7 @@ interface CreateWebRtcSessionOptions {
   createPeerConnection?: () => PeerConnectionLike;
   localStream?: MediaStream;
   onRemoteStream?: (stream: MediaStream) => void;
+  onRemoteScreen?: (stream: MediaStream) => void;
   onChatMessage?: (frame: string) => void;
   sendSignal: (payload: {
     roomId: string;
@@ -53,6 +54,7 @@ export const createWebRtcSession = ({
   createPeerConnection = defaultPeerConnectionFactory,
   localStream,
   onRemoteStream,
+  onRemoteScreen,
   onChatMessage,
   sendSignal,
   onSignalApplied,
@@ -60,11 +62,17 @@ export const createWebRtcSession = ({
   const peerConnection = createPeerConnection();
   let negotiationPrepared = false;
 
-  if (onRemoteStream) {
+  if (onRemoteStream || onRemoteScreen) {
     peerConnection.ontrack = (event: unknown) => {
-      const streams = (event as { streams?: MediaStream[] })?.streams;
-      if (streams && streams[0]) {
-        onRemoteStream(streams[0]);
+      const e = event as { streams?: MediaStream[]; track?: { kind?: string } };
+      const stream = e.streams?.[0];
+      if (!stream) {
+        return;
+      }
+      if (e.track?.kind === 'video') {
+        onRemoteScreen?.(stream);
+      } else {
+        onRemoteStream?.(stream);
       }
     };
   }
@@ -165,6 +173,14 @@ export const createWebRtcSession = ({
     return false;
   };
 
+  const addTrack = async (track: MediaStreamTrack, stream: MediaStream) => {
+    peerConnection.addTrack(track, stream);
+    // renegotiate so the peer subscribes to the newly added track
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    await sendLocalDescription('Offer', offer);
+  };
+
   const close = () => {
     chatChannel?.close();
     peerConnection.close();
@@ -174,6 +190,7 @@ export const createWebRtcSession = ({
     startOffer,
     handleSignal,
     sendChat,
+    addTrack,
     close,
   };
 };
