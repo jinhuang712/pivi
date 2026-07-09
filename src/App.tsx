@@ -114,6 +114,7 @@ function AppShell() {
   });
 
   const screenShare = useScreenShare();
+  const [remoteScreen, setRemoteScreen] = useState<MediaStream | null>(null);
 
   const currentUserIsHost = members.find((m) => m.id === currentUserId)?.isHost ?? false;
   const controlSessionRef = useRef<ReturnType<typeof createControlSession> | null>(null);
@@ -210,6 +211,10 @@ function AppShell() {
       onRemoteStream: (stream) => {
         audioEngineRef.current?.bindRemoteStream(peerId, stream);
         appendRuntimeLog('info', 'audio', `已绑定远端音频流: ${peerId}`);
+      },
+      onRemoteScreen: (stream) => {
+        setRemoteScreen(stream);
+        appendRuntimeLog('info', 'screen', `收到远端屏幕共享: ${peerId}`);
       },
       onChatMessage: (frame) => {
         handleIncomingChat(frame, peerId);
@@ -488,6 +493,7 @@ function AppShell() {
 
   const handleLeave = () => {
     screenShare.stop();
+    setRemoteScreen(null);
     controlSessionRef.current?.stop();
     controlSessionRef.current = null;
     peerSessionsRef.current.forEach((session, peerId) => {
@@ -580,6 +586,7 @@ function AppShell() {
             onStartShare={handleStartShare}
             onStopShare={handleStopShare}
             localScreenStream={screenShare.stream}
+            remoteScreenStream={remoteScreen}
             currentUserName={currentUserName}
             messages={messages}
             networkPath={networkPath}

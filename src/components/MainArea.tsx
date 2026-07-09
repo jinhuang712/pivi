@@ -12,6 +12,7 @@ interface MainAreaProps {
   onStartShare?: (opts: { quality: string; includeSystemAudio: boolean }) => void;
   onStopShare?: () => void;
   localScreenStream?: MediaStream | null;
+  remoteScreenStream?: MediaStream | null;
   currentUserName: string;
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
@@ -37,6 +38,7 @@ const MainArea: React.FC<MainAreaProps> = ({
   onStartShare,
   onStopShare,
   localScreenStream,
+  remoteScreenStream,
   currentUserName,
   messages,
   onSendMessage,
@@ -53,6 +55,7 @@ const MainArea: React.FC<MainAreaProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [showError, setShowError] = useState(false);
   const pipVideoRef = useRef<HTMLVideoElement | null>(null);
+  const viewerVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const isMicMuted = isMicMutedProp ?? internalMicMuted;
   const isSharing = isScreenSharing ?? internalSharing;
@@ -112,6 +115,12 @@ const MainArea: React.FC<MainAreaProps> = ({
     }
   }, [localScreenStream, isSharing]);
 
+  useEffect(() => {
+    if (viewerVideoRef.current && remoteScreenStream) {
+      viewerVideoRef.current.srcObject = remoteScreenStream;
+    }
+  }, [remoteScreenStream]);
+
   return (
     <main className="main">
       <div className="topbar">
@@ -128,6 +137,18 @@ const MainArea: React.FC<MainAreaProps> = ({
           </div>
         )}
       </div>
+
+      {remoteScreenStream && (
+        <div style={{ padding: '12px 20px 0' }}>
+          <video
+            data-testid="remote-screen"
+            ref={viewerVideoRef}
+            autoPlay
+            playsInline
+            style={{ width: '100%', maxHeight: '55vh', background: '#000', borderRadius: 'var(--r)', display: 'block' }}
+          />
+        </div>
+      )}
 
       <div className="chat">
         {messages.length === 0 && (

@@ -89,4 +89,23 @@ describe('MainArea Component', () => {
     fireEvent.click(micBtn);
     expect(micBtn).toHaveClass('off');
   });
+
+  it('shows the remote screen viewer when a remote screen stream arrives', () => {
+    const stream = { id: 'remote' } as unknown as MediaStream;
+    render(
+      <MainArea
+        onOpenSettings={vi.fn()}
+        currentUserName="HuangJin"
+        messages={[]}
+        onSendMessage={vi.fn()}
+        remoteScreenStream={stream}
+      />,
+    );
+    expect(screen.getByTestId('remote-screen')).toBeInTheDocument();
+  });
+
+  it('does not show the viewer without a remote stream', () => {
+    renderMainArea();
+    expect(screen.queryByTestId('remote-screen')).not.toBeInTheDocument();
+  });
 });
