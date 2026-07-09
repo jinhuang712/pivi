@@ -10,8 +10,10 @@ const createFakePeerConnection = () => {
     setLocalDescription: vi.fn(async () => {}),
     setRemoteDescription: vi.fn(async () => {}),
     addIceCandidate: vi.fn(async () => {}),
+    addTrack: vi.fn(),
     close: vi.fn(),
     onicecandidate: null as ((event: unknown) => void) | null,
+    ontrack: null as ((event: unknown) => void) | null,
   };
 
   return fake;
@@ -83,5 +85,40 @@ describe('createWebRtcSession', () => {
       payload: JSON.stringify({ type: 'answer', sdp: 'answer-sdp' }),
     });
     expect(peerConnection.addIceCandidate).toHaveBeenCalledWith({ candidate: 'abc', sdpMid: '0' });
+  });
+
+  it('adds local audio tracks to the peer connection and surfaces remote streams', async () => {
+    const audioTrack = { kind: 'audio', id: 't1' } as unknown as MediaStreamTrack;
+    const localStream = { getTracks: () => [audioTrack] } as unknown as MediaStream;
+    const pc: any = {
+      createDataChannel: vi.fn(),
+      createOffer: vi.fn(async () => ({ type: 'offer', sdp: 'offer-sdp' })),
+      createAnswer: vi.fn(async () => ({ type: 'answer', sdp: 'answer-sdp' })),
+      setLocalDescription: vi.fn(async () => {}),
+      setRemoteDescription: vi.fn(async () => {}),
+      addIceCandidate: vi.fn(async () => {}),
+      addTrack: vi.fn(),
+      close: vi.fn(),
+      onicecandidate: null,
+      ontrack: null,
+    };
+    const onRemoteStream = vi.fn();
+    const session = createWebRtcSession({
+      selfId: 'host-1',
+      peerId: 'user-2',
+      roomId: 'room-a',
+      createPeerConnection: () => pc,
+      localStream,
+      onRemoteStream,
+      sendSignal: vi.fn(async () => {}),
+    });
+
+    await session.startOffer();
+
+    expect(pc.addTrack).toHaveBeenCalledWith(audioTrack, localStream);
+
+    const remoteStream = { id: 'remote' } as unknown as MediaStream;
+    pc.ontrack({ streams: [remoteStream] });
+    expect(onRemoteStream).toHaveBeenCalledWith(remoteStream);
   });
 });

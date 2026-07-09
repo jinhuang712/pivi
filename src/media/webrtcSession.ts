@@ -7,8 +7,10 @@ type PeerConnectionLike = {
   setLocalDescription: (description: RTCSessionDescriptionInit) => Promise<void>;
   setRemoteDescription: (description: RTCSessionDescriptionInit) => Promise<void>;
   addIceCandidate: (candidate: RTCIceCandidateInit) => Promise<void>;
+  addTrack: (track: MediaStreamTrack, stream: MediaStream) => unknown;
   close: () => void;
   onicecandidate: any;
+  ontrack: any;
 };
 
 interface CreateWebRtcSessionOptions {
@@ -16,6 +18,8 @@ interface CreateWebRtcSessionOptions {
   peerId: string;
   roomId: string;
   createPeerConnection?: () => PeerConnectionLike;
+  localStream?: MediaStream;
+  onRemoteStream?: (stream: MediaStream) => void;
   sendSignal: (payload: {
     roomId: string;
     from: string;
@@ -36,11 +40,22 @@ export const createWebRtcSession = ({
   peerId,
   roomId,
   createPeerConnection = defaultPeerConnectionFactory,
+  localStream,
+  onRemoteStream,
   sendSignal,
   onSignalApplied,
 }: CreateWebRtcSessionOptions) => {
   const peerConnection = createPeerConnection();
   let negotiationPrepared = false;
+
+  if (onRemoteStream) {
+    peerConnection.ontrack = (event: unknown) => {
+      const streams = (event as { streams?: MediaStream[] })?.streams;
+      if (streams && streams[0]) {
+        onRemoteStream(streams[0]);
+      }
+    };
+  }
 
   const prepareNegotiation = () => {
     if (negotiationPrepared) {
@@ -48,6 +63,11 @@ export const createWebRtcSession = ({
     }
 
     negotiationPrepared = true;
+    if (localStream) {
+      localStream.getTracks().forEach((track) => {
+        peerConnection.addTrack(track, localStream);
+      });
+    }
     peerConnection.createDataChannel(`pivi-control-${peerId}`);
     peerConnection.onicecandidate = (event: unknown) => {
       const candidate = typeof event === 'object' && event !== null && 'candidate' in event ? event.candidate : null;
