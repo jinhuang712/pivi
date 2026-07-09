@@ -21,6 +21,7 @@ import { useHotkeys } from "./media/useHotkeys";
 import { useScreenShare } from "./media/useScreenShare";
 import type { ShareQualityPreset } from "./media/screenShare";
 import { IncomingFileAssembler, canSendImage, splitIntoChunks, type FileMetaFrame } from "./media/fileTransfer";
+import { SpeakingMonitor } from "./media/speakingDetector";
 import { AudioControlEngine } from "./media/audioControl";
 import { loadHotkeys } from "./lib/hotkeySettings";
 import { appendRuntimeLog, buildRuntimeDiagnosticsText } from "./lib/runtimeLog";
@@ -127,6 +128,11 @@ function AppShell() {
   );
   const membersRef = useRef<RoomMember[]>([]);
   membersRef.current = members;
+  const speakingMonitorsRef = useRef(new Map<string, SpeakingMonitor>());
+  const selfMonitorRef = useRef<SpeakingMonitor | null>(null);
+  const setMemberSpeaking = (memberId: string, speaking: boolean) => {
+    setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, isSpeaking: speaking } : m)));
+  };
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
@@ -263,6 +269,10 @@ function AppShell() {
       localStream: localAudio.stream ?? undefined,
       onRemoteStream: (stream) => {
         audioEngineRef.current?.bindRemoteStream(peerId, stream);
+        const monitor = new SpeakingMonitor((speaking) => setMemberSpeaking(peerId, speaking));
+        if (monitor.start(stream)) {
+          speakingMonitorsRef.current.set(peerId, monitor);
+        }
         appendRuntimeLog('info', 'audio', `已绑定远端音频流: ${peerId}`);
       },
       onRemoteScreen: (stream) => {
@@ -310,6 +320,8 @@ function AppShell() {
       peerSessionsRef.current.forEach((session, peerId) => {
         if (!activePeerIds.has(peerId)) {
           audioEngineRef.current?.unbindRemoteStream(peerId);
+          speakingMonitorsRef.current.get(peerId)?.stop();
+          speakingMonitorsRef.current.delete(peerId);
           session.close();
           peerSessionsRef.current.delete(peerId);
         }
@@ -384,6 +396,25 @@ function AppShell() {
       engine.setLocalMute(member.id, member.localMuted);
     });
   }, [members]);
+
+  // local mic level -> self speaking indicator
+  useEffect(() => {
+    if (!localAudio.stream) {
+      return;
+    }
+    selfMonitorRef.current?.stop();
+    const monitor = new SpeakingMonitor((speaking) => setMemberSpeaking(currentUserId, speaking));
+    selfMonitorRef.current = monitor;
+    if (!monitor.start(localAudio.stream)) {
+      selfMonitorRef.current = null;
+    }
+    return () => {
+      monitor.stop();
+      if (selfMonitorRef.current === monitor) {
+        selfMonitorRef.current = null;
+      }
+    };
+  }, [localAudio.stream, currentUserId]);
 
   const handleCopyDiagnostics = async () => {
     await navigator.clipboard.writeText(buildRuntimeDiagnosticsText());
@@ -587,9 +618,13 @@ function AppShell() {
     controlSessionRef.current = null;
     peerSessionsRef.current.forEach((session, peerId) => {
       audioEngineRef.current?.unbindRemoteStream(peerId);
+      speakingMonitorsRef.current.get(peerId)?.stop();
       session.close();
     });
     peerSessionsRef.current.clear();
+    speakingMonitorsRef.current.clear();
+    selfMonitorRef.current?.stop();
+    selfMonitorRef.current = null;
     setActiveRoomId('');
     setActiveRemoteEndpoint(null);
     setMembers([]);
