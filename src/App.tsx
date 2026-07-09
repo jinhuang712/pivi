@@ -16,6 +16,8 @@ import {
 import { JoinRoomResolutionError, resolveJoinRoom } from "./lib/joinRoom";
 import { createControlSession } from "./lib/controlSession";
 import { createWebRtcSession } from "./media/webrtcSession";
+import { useLocalAudio } from "./media/useLocalAudio";
+import { AudioControlEngine } from "./media/audioControl";
 import { appendRuntimeLog, buildRuntimeDiagnosticsText } from "./lib/runtimeLog";
 import {
   getHostRuntimeRoomEvents,
@@ -91,6 +93,12 @@ function AppShell() {
     return created;
   }, []);
 
+  const localAudio = useLocalAudio(appState === 'channel');
+  const audioEngineRef = useRef<AudioControlEngine | null>(null);
+  if (!audioEngineRef.current) {
+    audioEngineRef.current = new AudioControlEngine();
+  }
+
   const currentUserIsHost = members.find((m) => m.id === currentUserId)?.isHost ?? false;
   const controlSessionRef = useRef<ReturnType<typeof createControlSession> | null>(null);
   const peerSessionsRef = useRef(new Map<string, ReturnType<typeof createWebRtcSession>>());
@@ -155,6 +163,11 @@ function AppShell() {
       selfId: currentUserId,
       peerId,
       roomId: activeRoomIdRef.current,
+      localStream: localAudio.stream ?? undefined,
+      onRemoteStream: (stream) => {
+        audioEngineRef.current?.bindRemoteStream(peerId, stream);
+        appendRuntimeLog('info', 'audio', `已绑定远端音频流: ${peerId}`);
+      },
       sendSignal: async ({ target, signalType, payload }) => {
         await sendWebRtcSignal(target, signalType, payload);
       },
@@ -192,6 +205,7 @@ function AppShell() {
       );
       peerSessionsRef.current.forEach((session, peerId) => {
         if (!activePeerIds.has(peerId)) {
+          audioEngineRef.current?.unbindRemoteStream(peerId);
           session.close();
           peerSessionsRef.current.delete(peerId);
         }
@@ -256,6 +270,16 @@ function AppShell() {
       controlSessionRef.current = null;
     };
   }, [activeRemoteEndpoint, activeRoomId, activeRoomStartSequence, appState, currentUserId]);
+
+  // sync per-member local volume / mute to the audio engine
+  useEffect(() => {
+    const engine = audioEngineRef.current;
+    if (!engine) return;
+    members.forEach((member) => {
+      engine.setRemoteVolume(member.id, member.volume);
+      engine.setLocalMute(member.id, member.localMuted);
+    });
+  }, [members]);
 
   const handleCopyDiagnostics = async () => {
     await navigator.clipboard.writeText(buildRuntimeDiagnosticsText());
@@ -399,7 +423,10 @@ function AppShell() {
   const handleLeave = () => {
     controlSessionRef.current?.stop();
     controlSessionRef.current = null;
-    peerSessionsRef.current.forEach((session) => session.close());
+    peerSessionsRef.current.forEach((session, peerId) => {
+      audioEngineRef.current?.unbindRemoteStream(peerId);
+      session.close();
+    });
     peerSessionsRef.current.clear();
     setActiveRoomId('');
     setActiveRemoteEndpoint(null);
@@ -480,6 +507,8 @@ function AppShell() {
           <MainArea
             onOpenSettings={() => setIsSettingsOpen(true)}
             onLeave={handleLeave}
+            isMicMuted={localAudio.isMuted}
+            onToggleMic={localAudio.toggleMute}
             currentUserName={currentUserName}
             messages={messages}
             networkPath={networkPath}

@@ -6,6 +6,8 @@ import { T, useLang } from '../providers';
 interface MainAreaProps {
   onOpenSettings?: () => void;
   onLeave?: () => void;
+  isMicMuted?: boolean;
+  onToggleMic?: () => void;
   currentUserName: string;
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
@@ -25,6 +27,8 @@ const Icons = {
 const MainArea: React.FC<MainAreaProps> = ({
   onOpenSettings,
   onLeave,
+  isMicMuted: isMicMutedProp,
+  onToggleMic,
   currentUserName,
   messages,
   onSendMessage,
@@ -36,7 +40,15 @@ const MainArea: React.FC<MainAreaProps> = ({
   const [showStartPanel, setShowStartPanel] = useState(false);
   const [quality, setQuality] = useState<'1080' | '720' | '480'>('1080');
   const [shareAudio, setShareAudio] = useState(true);
-  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [internalMicMuted, setInternalMicMuted] = useState(false);
+  const isMicMuted = isMicMutedProp ?? internalMicMuted;
+  const handleMicToggle = () => {
+    if (onToggleMic) {
+      onToggleMic();
+      return;
+    }
+    setInternalMicMuted((v) => !v);
+  };
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [showError, setShowError] = useState(false);
@@ -134,7 +146,7 @@ const MainArea: React.FC<MainAreaProps> = ({
       <div className="controls">
         <button
           className={`ctl ${isMicMuted ? 'off' : 'on'}`}
-          onClick={() => setIsMicMuted((v) => !v)}
+          onClick={handleMicToggle}
           aria-label="Microphone"
         >
           <span className="ic">{isMicMuted ? Icons.micOff : Icons.mic}</span>
