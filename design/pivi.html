@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="dark" data-lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pivi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root[data-theme="dark"]{--bg:#161513;--surface:#1E1C19;--surface-2:#26231F;--hair:#2C2925;--hair-2:#242120;--ink:#ECE9E2;--muted:#8E8A82;--accent:#46C9AE;--accent-soft:#1C2A26;--danger:#E0786E;--on-accent:#0E1512;--thumb:linear-gradient(135deg,#2c2925,#24221f);--shadow:0 8px 30px -12px rgba(0,0,0,.6);color-scheme:dark}
+:root[data-theme="light"]{--bg:#E6E4DE;--surface:#EFEEE8;--surface-2:#DFDDD6;--hair:#D2D0C8;--hair-2:#DCDAD3;--ink:#232321;--muted:#7A7770;--accent:#0E7C70;--accent-soft:#D8EAE6;--danger:#B23A48;--on-accent:#FFFFFF;--thumb:linear-gradient(135deg,#d8d6cf,#c9c7bf);--shadow:0 8px 28px -12px rgba(40,38,32,.18);color-scheme:light}
+:root{--r:6px;--sans:'Hanken Grotesk',system-ui,sans-serif;--display:'Bricolage Grotesque',var(--sans);--mono:'Spline Sans Mono',ui-monospace,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;font-size:14px;transition:background .25s,color .25s}
+.wrap{max-width:960px;margin:0 auto;padding:56px 32px 120px}
+.label{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h2{font-family:var(--display);font-weight:600;letter-spacing:-.015em;line-height:1.1}
+
+.head{display:flex;align-items:center;gap:14px;padding-bottom:20px;border-bottom:1px solid var(--hair);margin-bottom:48px;flex-wrap:wrap}
+.head .mark{font-family:var(--display);font-weight:600;font-size:22px}
+.head .tag{color:var(--muted);font-size:13px}
+.head .sp{margin-left:auto;display:flex;align-items:center;gap:10px}
+.tog{display:inline-flex;border:1px solid var(--hair);border-radius:var(--r);overflow:hidden}
+.tog button{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:6px 11px;background:none;border:none;color:var(--muted);cursor:pointer;transition:.15s}
+.tog button.on{background:var(--accent);color:var(--on-accent)}
+.tog button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.group{display:flex;align-items:center;gap:12px;margin:40px 0 22px}
+.group .gline{flex:1;height:1px;background:var(--hair)}
+.group .glabel{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+
+.screen{margin-bottom:56px}
+.screen-label{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.screen-label .n{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.1em}
+.screen-label .t{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+.screen-label .d{margin-left:auto;font-family:var(--sans);font-size:12px;color:var(--muted);max-width:42ch;text-align:right;line-height:1.5}
+.card{background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);overflow:hidden}
+
+.btn{font-family:var(--sans);font-size:13px;font-weight:500;padding:9px 16px;border-radius:var(--r);border:1px solid var(--hair);background:var(--surface);color:var(--ink);cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn.outline{background:transparent;border-color:var(--accent);color:var(--accent)}
+.btn.outline:hover{background:var(--surface-2)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--ink);background:var(--surface-2)}
+.btn.sm{padding:5px 11px;font-size:12px}
+.link{font-family:var(--sans);font-size:13px;color:var(--accent);cursor:pointer;text-decoration:none}
+.link:hover{text-decoration:underline}
+.seg{display:inline-flex;border:1px solid var(--hair);border-radius:var(--r);overflow:hidden}
+.seg button{font-size:12px;padding:8px 14px;background:none;border:none;color:var(--muted);cursor:pointer;font-family:var(--sans)}
+.seg button.on{background:var(--accent);color:var(--on-accent)}
+
+/* join */
+.join{padding:64px 48px;text-align:center}
+.join h2{font-size:28px;margin-bottom:10px}
+.join .sub{color:var(--muted);font-size:14px;max-width:40ch;margin:0 auto 30px}
+.code-input{width:100%;max-width:420px;margin:0 auto;font-family:var(--mono);font-size:18px;letter-spacing:.18em;font-weight:500;color:var(--ink);background:var(--bg);border:1px solid var(--hair);border-radius:var(--r);padding:14px 16px;text-align:center;transition:.15s}
+.code-input:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.join .hint{font-family:var(--mono);font-size:11px;color:var(--muted);margin:10px auto 24px}
+.join-actions{display:flex;gap:10px;justify-content:center;align-items:center}
+.join-err{margin:22px auto 0;max-width:420px;font-size:13px;color:var(--danger);line-height:1.55}
+.join-err a{display:inline-block;margin-top:4px}
+
+/* preparing */
+.prep{padding:56px 48px;text-align:center}
+.prep h2{font-size:22px;margin-bottom:6px}
+.prep .now{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:26px}
+.progress{height:2px;background:var(--hair);border-radius:2px;max-width:360px;margin:0 auto 26px;overflow:hidden}
+.progress i{display:block;height:100%;width:62%;background:var(--accent)}
+.steps{max-width:300px;margin:0 auto;text-align:left}
+.step{display:flex;align-items:center;gap:11px;padding:7px 0;font-size:13px}
+.step .mk{width:15px;height:15px;border-radius:50%;border:1px solid var(--hair);flex-shrink:0;position:relative}
+.step.done .mk{background:var(--accent);border-color:var(--accent)}
+.step.done .mk::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid var(--on-accent);border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+.step.active .mk{border-color:var(--accent)}
+.step.active .mk::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--accent);animation:blip 1.4s ease-in-out infinite}
+.step .lb{flex:1}
+.step .val{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.step.done .val{color:var(--accent)}
+@keyframes blip{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* confirm */
+.confirm{padding:26px 30px 22px;max-width:440px;margin:32px auto}
+.confirm h2{font-size:19px;margin-bottom:16px}
+.dl{margin-bottom:16px}
+.dr{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair-2)}
+.dr:last-child{border-bottom:none}
+.dr .k{font-size:13px;color:var(--muted)}
+.dr .v{font-size:13px;font-weight:500}
+.dr .v .host{font-family:var(--mono);font-size:10px;color:var(--accent);margin-left:6px;letter-spacing:.06em}
+.path-note{font-size:12px;color:var(--muted);line-height:1.55;padding:10px 0 16px}
+.path-note b{color:var(--ink);font-weight:500}
+.confirm-foot{display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--hair-2);padding-top:16px}
+
+/* channel shell */
+.ch{display:grid;grid-template-columns:236px 1fr;min-height:520px}
+.rail{border-right:1px solid var(--hair);padding:18px 16px;display:flex;flex-direction:column;gap:16px}
+.rail-room .name{font-size:14px;font-weight:600;margin-bottom:8px}
+.freq{display:flex;align-items:center;gap:8px}
+.freq .live{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:blip 2.4s ease-in-out infinite;flex-shrink:0}
+.freq .code{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink)}
+.freq .copy{font-family:var(--mono);font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;margin-left:auto}
+.freq .copy:hover{color:var(--accent)}
+.you{display:flex;align-items:center;gap:9px;padding-top:14px;border-top:1px solid var(--hair-2)}
+.you .av{width:24px;height:24px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.you .nm{font-size:13px;font-weight:500}
+.you .rl{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.mlist .label{margin-bottom:8px}
+.m{padding:6px 4px;display:flex;align-items:center;gap:9px;border-radius:4px;position:relative}
+.m:hover{background:var(--surface-2)}
+.m .d{width:6px;height:6px;border-radius:50%;background:var(--hair);flex-shrink:0}
+.m .d.on{background:var(--accent)}
+.m .d.share{background:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.m .d.muted{background:transparent;border:1px solid var(--muted)}
+.m .n{font-size:13px;flex:1}
+.m .n .r{font-family:var(--mono);font-size:9px;color:var(--accent);margin-left:5px;letter-spacing:.06em}
+.m .n .r.muted{color:var(--muted)}
+.m .n .r.you{color:var(--muted)}
+.m .sub{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.m-x{margin:6px 0 2px 15px;padding:8px 10px;border-left:2px solid var(--hair)}
+.m-x .vrow{display:flex;align-items:center;gap:8px}
+.m-x .vrow .lb{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.m-x .mute{font-family:var(--mono);font-size:9px;color:var(--danger);background:none;border:none;cursor:pointer;margin-left:auto;letter-spacing:.06em;text-transform:uppercase}
+.ctx{position:absolute;left:120px;top:24px;z-index:5;width:172px;background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);box-shadow:var(--shadow);padding:4px}
+.ctx-h{font-family:var(--mono);font-size:9px;color:var(--muted-2);letter-spacing:.14em;text-transform:uppercase;padding:8px 10px 5px}
+.ctx-it{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;font-size:12px;cursor:pointer;border-radius:4px}
+.ctx-it:hover{background:var(--surface-2)}
+.ctx-it .hk{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.ctx-it.danger{color:var(--danger)}
+.ctx-sep{height:1px;background:var(--hair-2);margin:3px 0}
+
+.main{display:flex;flex-direction:column;min-width:0;position:relative}
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--hair)}
+.conn{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px}
+.conn .tick{width:2px;height:14px;background:var(--accent);border-radius:1px}
+.conn .tick.relay{background:repeating-linear-gradient(180deg,var(--muted) 0 3px,transparent 3px 6px)}
+.conn .p{color:var(--muted);margin-left:6px}
+.toggle{display:flex;border:1px solid var(--hair);border-radius:var(--r);overflow:hidden;margin-left:auto}
+.toggle button{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:6px 11px;background:none;border:none;color:var(--muted);cursor:pointer}
+.toggle button.on{background:var(--accent);color:var(--on-accent)}
+.share-ind{margin-left:auto;display:flex;align-items:center;gap:9px;font-size:12px}
+.share-ind .ld{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blip 2.4s infinite}
+.share-ind .q{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--hair);border-radius:var(--r);padding:3px 7px}
+.share-strip{display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid var(--hair-2);font-size:12px;color:var(--muted)}
+.share-strip .d{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.share-strip b{color:var(--ink);font-weight:500}
+.share-strip .q{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:auto}
+.share-thumb{width:54px;height:32px;border-radius:3px;background:var(--thumb);border:1px solid var(--hair);flex-shrink:0}
+
+.chat{flex:1;overflow:visible;padding:16px 20px;min-height:240px;display:flex;flex-direction:column;gap:11px}
+.msg{font-size:13px;line-height:1.5}
+.msg .mh{display:flex;gap:9px;align-items:baseline}
+.msg .ts{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.msg .sn{font-weight:600;font-size:13px}
+.msg .sn.me{color:var(--accent)}
+.msg .bd{color:var(--ink);margin-left:34px;margin-top:2px}
+.msg .attach{display:inline-flex;align-items:center;gap:8px;margin:4px 0 0 34px;padding:6px 9px;border:1px solid var(--hair);border-radius:var(--r);font-family:var(--mono);font-size:11px}
+.msg .attach .ph{width:18px;height:18px;border-radius:3px;background:var(--thumb)}
+.msg .attach .sz{color:var(--muted)}
+.composer{border-top:1px solid var(--hair);padding:11px 20px}
+.composer .f{display:flex;align-items:center;gap:10px;border:1px solid var(--hair);border-radius:var(--r);padding:8px 12px;background:var(--bg)}
+.composer .f:focus-within{border-color:var(--accent)}
+.composer input{flex:1;background:none;border:none;outline:none;font-size:13px;font-family:var(--sans);color:var(--ink)}
+.composer input::placeholder{color:var(--muted)}
+.composer .lim{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+.controls{display:flex;align-items:center;gap:4px;padding:11px 20px;border-top:1px solid var(--hair)}
+.ctl{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 12px;border:none;background:none;cursor:pointer;color:var(--ink);border-radius:var(--r);transition:.15s}
+.ctl:hover{background:var(--surface-2)}
+.ctl:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ctl .ic{width:18px;height:18px;display:flex;align-items:center;justify-content:center}
+.ctl .ic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6}
+.ctl .lb{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ctl.on .ic,.ctl.on .lb{color:var(--accent)}
+.ctl.leave{margin-left:auto}
+.ctl.leave:hover{background:rgba(178,58,72,.10)}
+:root[data-theme="dark"] .ctl.leave:hover{background:rgba(224,120,110,.12)}
+
+/* presenter PiP */
+.pip{position:absolute;right:16px;top:62px;width:200px;z-index:7;box-shadow:var(--shadow)}
+.pip-frame{position:relative;border:1px solid var(--accent);border-radius:var(--r);overflow:hidden;background:var(--bg);aspect-ratio:16/9}
+.pip-label{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--surface);border:1px solid var(--hair);border-top:none;border-radius:0 0 var(--r) var(--r);font-family:var(--mono);font-size:10px;color:var(--muted)}
+.pip-label .stop{color:var(--muted);background:none;border:none;cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:0}
+.pip-label .stop:hover{text-decoration:underline;color:var(--ink)}
+
+/* sidebar share-available card */
+.rail-share{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--hair);border-radius:var(--r);background:var(--surface-2)}
+.rail-share .rs-thumb{width:44px;height:26px;border-radius:3px;background:var(--thumb);border:1px solid var(--hair);flex-shrink:0;position:relative}
+.rail-share .rs-thumb .d{position:absolute;top:3px;left:3px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.rail-share .rs-info{min-width:0;flex:1}
+.rail-share .rs-who{font-size:12px;line-height:1.3}
+.rail-share .rs-view{font-family:var(--mono);font-size:10px;color:var(--accent);background:none;border:none;cursor:pointer;padding:3px 0 0;letter-spacing:.04em;text-transform:uppercase}
+.rail-share .rs-view:hover{text-decoration:underline}
+
+/* viewer share bar + stage */
+.share-bar{display:flex;align-items:center;gap:11px;padding:10px 20px;border-bottom:1px solid var(--hair-2);font-size:13px}
+.share-bar .ld{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:blip 2.4s infinite;flex-shrink:0}
+.share-bar .who{font-weight:500}
+.share-bar .right{margin-left:auto;display:flex;gap:8px}
+.stage{flex:1;position:relative;padding:16px 20px;min-height:300px}
+.screen-frame{position:absolute;inset:16px 20px;border:1px solid var(--accent);border-radius:var(--r);overflow:hidden;background:var(--bg)}
+.live-tag{position:absolute;top:9px;right:9px;font-family:var(--mono);font-size:9px;color:var(--on-accent);background:var(--accent);padding:3px 7px;border-radius:var(--r);letter-spacing:.1em;text-transform:uppercase;z-index:3}
+.sm{position:absolute;inset:0;display:flex;flex-direction:column}
+.sm-bar{display:flex;align-items:center;gap:6px;padding:7px 11px;border-bottom:1px solid var(--hair);background:var(--surface)}
+.sm-bar i{width:8px;height:8px;border-radius:50%;background:var(--hair)}
+.sm-bar .t{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:8px}
+.sm-body{flex:1;display:flex;min-height:0}
+.sm-side{width:110px;border-right:1px solid var(--hair);padding:9px 8px;display:flex;flex-direction:column;gap:7px;background:var(--surface)}
+.sm-th{height:30px;border-radius:3px;background:var(--surface-2);border:1px solid var(--hair)}
+.sm-th.act{border-color:var(--accent);background:var(--accent-soft)}
+.sm-main{flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:11px;overflow:hidden}
+.sm-h{width:38%;height:13px;border-radius:3px;background:var(--muted);opacity:.45}
+.sm-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.sm-card{height:54px;border-radius:4px;background:var(--surface-2);border:1px solid var(--hair)}
+.sm-line{height:7px;border-radius:3px;background:var(--hair)}
+.sm-line.w70{width:70%}.sm-line.w50{width:50%}.sm-line.w90{width:90%}
+.sm.mini .sm-side{width:34px;padding:4px}
+.sm.mini .sm-th{height:14px}
+.sm.mini .sm-main{padding:7px 8px;gap:6px}
+.sm.mini .sm-h{height:7px;width:50%}
+.sm.mini .sm-card{height:18px}
+.sm.mini .sm-line{height:4px}
+.sm.mini .sm-bar{padding:4px 7px}
+.sm.mini .sm-bar .t{display:none}
+.peek{position:absolute;bottom:12px;right:16px;font-family:var(--mono);font-size:11px;background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);padding:7px 11px;cursor:pointer;box-shadow:var(--shadow);color:var(--ink);display:flex;align-items:center;gap:7px;z-index:4}
+.peek .ct{color:var(--accent)}
+
+/* fullscreen */
+.fs{position:relative;min-height:500px}
+.fs .screen-frame{inset:0;border-radius:0;border:none;border-top:2px solid var(--accent)}
+.fs-pill{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--hair);border-radius:999px;padding:7px 14px 7px 12px;box-shadow:var(--shadow);font-size:12px;z-index:5}
+.fs-pill .ld{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:blip 2.4s infinite}
+.fs-pill .who{font-weight:500}
+.fs-pill .sep{color:var(--hair)}
+.fs-pill .q{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.fs-pill .conn{font-family:var(--mono);font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:5px}
+.fs-pill .conn .tick{width:2px;height:11px;background:var(--accent);border-radius:1px;display:inline-block}
+.fs-pill button{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px;border-radius:var(--r)}
+.fs-pill button:hover{color:var(--ink);background:var(--surface-2)}
+.fs-hint{text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);padding:14px}
+
+/* settings */
+.set{display:grid;grid-template-columns:180px 1fr;min-height:460px}
+.set-nav{border-right:1px solid var(--hair);padding:22px 16px;display:flex;flex-direction:column;gap:2px}
+.set-nav .label{margin-bottom:10px}
+.set-nav a{font-size:13px;color:var(--muted);cursor:pointer;padding:7px 10px;border-radius:var(--r);text-decoration:none}
+.set-nav a:hover{background:var(--surface-2);color:var(--ink)}
+.set-nav a.active{color:var(--ink);font-weight:500;background:var(--surface-2)}
+.set-body{padding:24px 28px}
+.set-panel{padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid var(--hair-2)}
+.set-panel:last-child{border-bottom:none;margin-bottom:0}
+.set-panel h3{font-family:var(--sans);font-size:15px;font-weight:600;margin-bottom:4px}
+.set-panel .d{font-size:12px;color:var(--muted);margin-bottom:14px}
+.fr{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center;padding:9px 0}
+.fr .l{font-size:12px;color:var(--muted)}
+.inp{background:var(--bg);border:1px solid var(--hair);border-radius:var(--r);padding:9px 12px;font-family:var(--sans);font-size:13px;color:var(--ink);width:100%}
+.inp.mono{font-family:var(--mono);font-size:12px}
+.inp:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.sel{appearance:none;-webkit-appearance:none;background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238A8A86'/%3E%3C/svg%3E") no-repeat right 12px center;border:1px solid var(--hair);border-radius:var(--r);padding:9px 30px 9px 12px;font-size:13px;color:var(--ink);width:100%;cursor:pointer;font-family:var(--sans)}
+.sel:focus{outline:none;border-color:var(--accent)}
+.copybtn{font-family:var(--mono);font-size:10px;color:var(--accent);background:none;border:1px solid var(--hair);border-radius:var(--r);padding:7px 10px;cursor:pointer;letter-spacing:.06em;text-transform:uppercase}
+.copybtn:hover{background:var(--accent-soft)}
+.hkr{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--hair-2)}
+.hkr:last-child{border-bottom:none}
+.hkr .nm{font-size:13px}
+.hkr .nm small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.keys{display:flex;gap:5px}
+.key{font-family:var(--mono);font-size:11px;padding:5px 9px;border:1px solid var(--hair);border-radius:4px;background:var(--bg);color:var(--ink)}
+.key.g{border-color:var(--accent);color:var(--accent)}
+.blr{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--hair-2)}
+.blr .id{font-family:var(--mono);font-size:12px}
+.blr .wh{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.empty{margin-top:14px;padding:18px;border:1px dashed var(--hair);border-radius:var(--r);text-align:center;font-size:12px;color:var(--muted);line-height:1.6}
+
+/* start panel */
+.panel-wrap{padding:44px 24px;display:flex;justify-content:center}
+.panel{width:100%;max-width:380px;padding:24px 26px 22px;position:relative}
+.panel .tail{position:absolute;left:50%;bottom:-7px;transform:translateX(-50%) rotate(45deg);width:13px;height:13px;background:var(--surface);border-right:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.panel h2{font-size:18px;margin-bottom:4px}
+.panel .sub{font-size:12px;color:var(--muted);margin-bottom:20px}
+.qrow{margin-bottom:16px}
+.qrow .ql{font-size:12px;color:var(--muted);margin-bottom:8px}
+.qhint{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5}
+.audrow{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-top:1px solid var(--hair-2);border-bottom:1px solid var(--hair-2);margin-bottom:14px}
+.audrow .nm{font-size:13px}
+.audrow .nm small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.switch{width:34px;height:20px;border-radius:10px;background:var(--hair);position:relative;cursor:pointer;transition:.15s;border:none;flex-shrink:0}
+.switch.on{background:var(--accent)}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--surface);transition:.15s}
+.switch.on::after{left:16px}
+.note{font-size:12px;color:var(--muted);line-height:1.55;margin-bottom:18px}
+.note b{color:var(--ink);font-weight:500}
+.panel-foot{display:flex;gap:10px;justify-content:flex-end}
+
+@media (max-width:760px){
+  .wrap{padding:36px 18px 80px}
+  .head .tag{display:none}
+  .ch{grid-template-columns:1fr}
+  .rail{border-right:none;border-bottom:1px solid var(--hair)}
+  .set{grid-template-columns:1fr}
+  .set-nav{flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--hair)}
+  .fr{grid-template-columns:1fr;gap:6px}
+  .join,.prep,.confirm,.panel-wrap{padding-left:22px;padding-right:22px}
+  .screen-label .d{display:none}
+  .pip{width:140px;right:10px;top:60px}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important;scroll-behavior:auto!important}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <span class="mark">Pivi</span>
+  <span class="tag" data-zh="一条直连语音频道。无云，无账号。" data-en="A direct voice room. No cloud, no account.">一条直连语音频道。无云，无账号。</span>
+  <div class="sp">
+    <div class="tog" id="langTog" role="group" aria-label="Language">
+      <button data-set="zh" class="on">中</button>
+      <button data-set="en">EN</button>
+    </div>
+    <div class="tog" id="themeTog" role="group" aria-label="Theme">
+      <button data-set="dark" class="on">Dark</button>
+      <button data-set="light">Light</button>
+    </div>
+  </div>
+</header>
+
+<div class="group"><span class="glabel" data-zh="房间流程" data-en="Room flow">房间流程</span><span class="gline"></span></div>
+
+<!-- 01 JOIN -->
+<section class="screen">
+  <div class="screen-label">
+    <span class="n">01</span><span class="t" data-zh="加入" data-en="Join">加入</span>
+    <span class="d" data-zh="唯一入口。16 位邀请码，4×4 分组，支持整段粘贴。无服务器选择，无账号。" data-en="Single entry point. A 16-char invite code, grouped 4×4, with full-paste parsing. No server picker, no account.">唯一入口。16 位邀请码，4×4 分组，支持整段粘贴。无服务器选择，无账号。</span>
+  </div>
+  <div class="card">
+    <div class="join">
+      <span class="label" data-zh="邀请码" data-en="Invite code">邀请码</span>
+      <h2 data-zh="加入一个直连房间" data-en="Join a direct room" style="margin-top:10px">加入一个直连房间</h2>
+      <p class="sub" data-zh="输入或粘贴房主给的 16 位邀请码。通话走点对点，不经任何服务器。" data-en="Paste or type a 16-character code from your host. The call connects peer-to-peer - nothing routes through a server.">输入或粘贴房主给的 16 位邀请码。通话走点对点，不经任何服务器。</p>
+      <input class="code-input" value="K7R2  M9QX  4B8F  L3NP" aria-label="Invite code" />
+      <div class="hint" data-zh="粘贴完整邀请码可一次填满所有分组。" data-en="Paste a full code to fill every group at once.">粘贴完整邀请码可一次填满所有分组。</div>
+      <div class="join-actions">
+        <button class="btn primary"><span data-zh="加入" data-en="Join">加入</span></button>
+        <button class="link ghost" style="background:none;border:none"><span data-zh="或创建房间 ->" data-en="or host a room ->">或创建房间 -&gt;</span></button>
+      </div>
+      <div class="join-err">
+        <span data-zh="无法连接该房间。房主可能离线，或端口被防火墙拦截。可重试，或回退到中转。" data-en="Can't reach that room. The host may be offline, or its port is blocked by a firewall. You can retry, or fall back to relay.">无法连接该房间。房主可能离线，或端口被防火墙拦截。可重试，或回退到中转。</span><br/>
+        <a class="link" data-zh="复制诊断日志" data-en="Copy diagnostics">复制诊断日志</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 PREPARING -->
+<section class="screen">
+  <div class="screen-label">
+    <span class="n">02</span><span class="t" data-zh="准备中" data-en="Preparing">准备中</span>
+    <span class="d" data-zh="房主运行时启动序列，逐步可见。绑端口 → NAT 映射 → 签发邀请 → 就绪。真正就绪前不显示邀请码。" data-en="Host runtime boot sequence, visible step-by-step. Port bind -> NAT mapping -> invite issued -> ready. No invite shown until genuinely live.">房主运行时启动序列，逐步可见。绑端口 → NAT 映射 → 签发邀请 → 就绪。真正就绪前不显示邀请码。</span>
+  </div>
+  <div class="card">
+    <div class="prep">
+      <h2 data-zh="正在启动你的房间" data-en="Starting your room">正在启动你的房间</h2>
+      <div class="now" data-zh="正在签发邀请码…" data-en="Issuing invite code…">正在签发邀请码…</div>
+      <div class="progress"><i></i></div>
+      <div class="steps">
+        <div class="step done"><span class="mk"></span><span class="lb" data-zh="绑定本地端口" data-en="Bind local port">绑定本地端口</span><span class="val">:7788</span></div>
+        <div class="step done"><span class="mk"></span><span class="lb" data-zh="映射公网端口" data-en="Map public port">映射公网端口</span><span class="val">UPnP</span></div>
+        <div class="step done"><span class="mk"></span><span class="lb" data-zh="探测局域网地址" data-en="Detect LAN address">探测局域网地址</span><span class="val">192.168.31.10</span></div>
+        <div class="step active"><span class="mk"></span><span class="lb" data-zh="签发邀请码" data-en="Issue invite code">签发邀请码</span><span class="val">…</span></div>
+        <div class="step"><span class="mk"></span><span class="lb" data-zh="自检" data-en="Self-check">自检</span><span class="val"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 CONFIRM -->
+<section class="screen">
+  <div class="screen-label">
+    <span class="n">03</span><span class="t" data-zh="确认" data-en="Confirm">确认</span>
+    <span class="d" data-zh="进入前确认。房间名、房主、在线人数、解析出的网络路径（P2P 或中转）一目了然。" data-en="Confirm before entering. Room name, host, live count, and the resolved network path - P2P or relay - shown plainly.">进入前确认。房间名、房主、在线人数、解析出的网络路径（P2P 或中转）一目了然。</span>
+  </div>
+  <div class="card">
+    <div class="confirm">
+      <h2 data-zh="加入 Mira 的房间？" data-en="Join Mira's room?">加入 Mira 的房间？</h2>
+      <div class="dl">
+        <div class="dr"><span class="k" data-zh="房主" data-en="Host">房主</span><span class="v">Mira <span class="host" data-zh="房主" data-en="host">房主</span></span></div>
+        <div class="dr"><span class="k" data-zh="在线" data-en="Online">在线</span><span class="v">3</span></div>
+        <div class="dr"><span class="k" data-zh="入口" data-en="Endpoint">入口</span><span class="v" style="font-family:var(--mono);font-size:12px">192.168.31.24:7788</span></div>
+      </div>
+      <p class="path-note"><b data-zh="可建立直连。" data-en="Direct connection available.">可建立直连。</b><span data-zh="若直连失败，Pivi 自动回退到房主中转——你会在房间状态里看到切换。" data-en=" If the direct path fails, Pivi switches to host relay automatically - you'll see it in the room status.">若直连失败，Pivi 自动回退到房主中转——你会在房间状态里看到切换。</span></p>
+      <div class="confirm-foot">
+        <button class="btn ghost"><span data-zh="取消" data-en="Cancel">取消</span></button>
+        <button class="btn primary"><span data-zh="加入" data-en="Join">加入</span></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 IN ROOM (channel) -->
+<section class="screen">
+  <div class="screen-label">
+    <span class="n">04</span><span class="t" data-zh="频道中" data-en="In room">频道中</span>
+    <span class="d" data-zh="主区是正常房间。顶部连接竖线 + P2P/中转切换；侧栏成员与邀请码；底部控制条。" data-en="The main area is a normal room. Top connection tick + P2P/Relay toggle; sidebar with members and invite code; bottom control bar.">主区是正常房间。顶部连接竖线 + P2P/中转切换；侧栏成员与邀请码；底部控制条。</span>
+  </div>
+  <div class="card">
+    <div class="ch">
+      <aside class="rail">
+        <div class="rail-room">
+          <div class="name" data-zh="Mira 的房间" data-en="Mira's room">Mira 的房间</div>
+          <div class="freq"><span class="live"></span><span class="code">K7R2-M9QX-4B8F-L3NP</span><button class="copy" data-zh="复制" data-en="copy">复制</button></div>
+        </div>
+        <div class="you"><div class="av">H</div><div><div class="nm">HuangJin</div><div class="rl" data-zh="你 · 房主" data-en="you · host">你 · 房主</div></div></div>
+        <div class="mlist">
+          <div class="label" data-zh="在线 · 5" data-en="In room · 5">在线 · 5</div>
+          <div class="m"><span class="d on"></span><span class="n">HuangJin <span class="r you" data-zh="你" data-en="you">你</span></span></div>
+          <div class="m"><span class="d on"></span><span class="n">Mira <span class="r" data-zh="共享中" data-en="sharing">共享中</span></span><span class="sub" data-zh="说话中" data-en="speaking">说话中</span></div>
+          <div class="m"><span class="d on"></span><span class="n">Kenji</span></div>
+          <div class="m"><span class="d muted"></span><span class="n">Aria</span><span class="sub" data-zh="被你静音" data-en="muted by you">被你静音</span></div>
+          <div class="m"><span class="d"></span><span class="n">Theo</span><span class="sub" data-zh="连接中" data-en="connecting">连接中</span></div>
+        </div>
+      </aside>
+      <main class="main">
+        <div class="topbar">
+          <div class="conn"><span class="tick" id="tick"></span><span id="connTx"><span data-zh="直连" data-en="Direct">直连</span><span class="p">· 38ms · <span data-zh="4 个节点" data-en="4 peers">4 个节点</span></span></span></div>
+          <div class="toggle" id="toggle">
+            <button class="on" data-p="p2p">P2P</button>
+            <button data-p="relay" data-zh="中转" data-en="Relay">中转</button>
+          </div>
+        </div>
+        <div class="share-strip">
+          <span class="d"></span>
+          <span><b>Mira</b> <span data-zh="正在共享屏幕" data-en="is sharing their screen">正在共享屏幕</span></span>
+          <span class="q">1080p</span>
+          <div class="share-thumb"></div>
+        </div>
+        <div class="chat">
+          <div class="msg"><div class="mh"><span class="ts">14:28</span><span class="sn me">HuangJin</span></div><div class="bd" data-zh="房间好了——邀请码在侧边栏。" data-en="Room's up - invite code is in the sidebar.">房间好了——邀请码在侧边栏。</div></div>
+          <div class="msg"><div class="mh"><span class="ts">14:29</span><span class="sn">Mira</span></div><div class="bd" data-zh="加入中。" data-en="Joining.">加入中。</div></div>
+          <div class="msg"><div class="mh"><span class="ts">14:31</span><span class="sn">Mira</span></div><div class="bd"><span data-zh="分享新设计稿——" data-en="Sharing the new mock -">分享新设计稿——</span><span class="attach"><span class="ph"></span>design-v3.png <span class="sz">· 2.1 MB</span></span></div></div>
+          <div class="msg"><div class="mh"><span class="ts">14:32</span><span class="sn">Kenji</span></div><div class="bd" data-zh="不错，直连下没延迟了。" data-en="Nice, lag's gone on the direct line.">不错，直连下没延迟了。</div></div>
+          <div class="msg"><div class="mh"><span class="ts">14:33</span><span class="sn me">HuangJin</span></div><div class="bd" data-zh="Theo 还在握手——可能要回退中转。" data-en="Theo still handshaking - might drop to relay.">Theo 还在握手——可能要回退中转。</div></div>
+        </div>
+        <div class="composer">
+          <div class="f"><input placeholder="" data-zh-ph="给房间发消息" data-en-ph="Message the room" /><span class="lim">5 MB</span></div>
+        </div>
+        <div class="controls">
+          <button class="ctl on" aria-label="Mic"><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span class="lb" data-zh="麦克风" data-en="Mic">麦克风</span></button>
+          <button class="ctl on" aria-label="Sound"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8a5 5 0 0 1 0 8"/></svg></span><span class="lb" data-zh="音量" data-en="Sound">音量</span></button>
+          <button class="ctl" aria-label="Share"><span class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg></span><span class="lb" data-zh="共享" data-en="Share">共享</span></button>
+          <button class="ctl" aria-label="Settings"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></span><span class="lb" data-zh="设置" data-en="Setup">设置</span></button>
+          <button class="ctl leave" aria-label="Leave"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></span><span class="lb" data-zh="离开" data-en="Leave">离开</span></button>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- 05 SETTINGS -->
+<section class="screen">
+  <div class="screen-label">
+    <span class="n">05</span><span class="t" data-zh="设置" data-en="Settings">设置</span>
+    <span class="d" data-zh="四个面板一览：身份、语音与设备、快捷键、黑名单。你控制的都在这。" data-en="All four panels at once: identity, voice & devices, hotkeys, blocked list.">四个面板一览：身份、语音与设备、快捷键、黑名单。你控制的都在这。</span>
+  </div>
+  <div class="card">
+    <div class="set">
+      <nav class="set-nav">
+        <span class="label" data-zh="设置" data-en="Setup">设置</span>
+        <a class="active" data-zh="身份" data-en="Identity">身份</a>
+        <a data-zh="语音与设备" data-en="Voice & devices">语音与设备</a>
+        <a data-zh="快捷键" data-en="Hotkeys">快捷键</a>
+        <a data-zh="黑名单" data-en="Blocked">黑名单</a>
+      </nav>
+      <div class="set-body">
+        <div class="set-panel">
+          <h3 data-zh="身份" data-en="Identity">身份</h3>
+          <p class="d" data-zh="别人看到的信息。UUID 是你的稳定标识——无需账号。" data-en="What others see. Your UUID is your stable handle - no account needed.">别人看到的信息。UUID 是你的稳定标识——无需账号。</p>
+          <div class="fr"><span class="l" data-zh="显示名" data-en="Display name">显示名</span><input class="inp" value="HuangJin" /></div>
+          <div class="fr"><span class="l" data-zh="你的 UUID" data-en="Your UUID">你的 UUID</span><div style="display:flex;gap:8px"><input class="inp mono" value="uuid-7a3c9f21" readonly /><button class="copybtn" data-zh="复制" data-en="Copy">复制</button></div></div>
+        </div>
+        <div class="set-panel">
+          <h3 data-zh="语音与设备" data-en="Voice & devices">语音与设备</h3>
+          <p class="d" data-zh="选你的设备和说话方式。" data-en="Pick your gear and how you talk.">选你的设备和说话方式。</p>
+          <div class="fr"><span class="l" data-zh="输入" data-en="Input">输入</span><select class="sel"><option>MacBook Pro Microphone</option></select></div>
+          <div class="fr"><span class="l" data-zh="输出" data-en="Output">输出</span><select class="sel"><option>AirPods Pro</option></select></div>
+          <div class="fr"><span class="l" data-zh="通话模式" data-en="Talk mode">通话模式</span><div class="seg"><button class="on" data-zh="按键说话" data-en="Push-to-talk">按键说话</button><button data-zh="语音活动" data-en="Voice activity">语音活动</button></div></div>
+        </div>
+        <div class="set-panel">
+          <h3 data-zh="快捷键" data-en="Hotkeys">快捷键</h3>
+          <p class="d" data-zh="全局快捷键，即使 Pivi 不在前台也生效。" data-en="Global shortcuts work even when Pivi isn't focused.">全局快捷键，即使 Pivi 不在前台也生效。</p>
+          <div class="hkr"><div class="nm"><span data-zh="按住说话" data-en="Push to talk">按住说话</span><small data-zh="按住时说话" data-en="Talk while held">按住时说话</small></div><div class="keys"><span class="key g">Space</span></div></div>
+          <div class="hkr"><div class="nm"><span data-zh="静音 / 取消静音" data-en="Mute / unmute">静音 / 取消静音</span><small data-zh="切换麦克风" data-en="Toggle your mic">切换麦克风</small></div><div class="keys"><span class="key g">Ctrl</span><span class="key g">Shift</span><span class="key g">M</span></div></div>
+        </div>
+        <div class="set-panel">
+          <h3 data-zh="黑名单" data-en="Blocked">黑名单</h3>
+          <p class="d" data-zh="被拉黑的 UUID 无法加入你建的房间。" data-en="Blocked UUIDs can't join rooms you host.">被拉黑的 UUID 无法加入你建的房间。</p>
+          <div class="blr"><div><div class="id">uuid-2b8e1c40</div><div class="wh" data-zh="3 月 21 日拉黑" data-en="blocked Mar 21">3 月 21 日拉黑</div></div><button class="btn ghost sm"><span data-zh="解封" data-en="Unblock">解封</span></button></div>
+          <div class="blr"><div><div class="id">uuid-91fd0a33</div><div class="wh" data-zh="3 月 19 日拉黑" data-en="blocked Mar 19">3 月 19 日拉黑</div></div><button class="btn ghost sm"><span data-zh="解封" data-en="Unblock">解封</span></button></div>
+          <div class="empty" data-zh="没有其他人被拉黑。在房间里的成员卡片上可以拉黑。" data-en="No one else blocked. Block someone from their card in-room.">没有其他人被拉黑。在房间里的成员卡片上可以拉黑。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="group"><span class="glabel" data-zh="屏幕共享" data-en="Screen share">屏幕共享</span><span class="gline"></span></div>
+
+<!-- 06 START SHARING -->
+<section class="screen">
+  <div class="screen-label">
+    <span class="n">06</span><span class="t" data-zh="开始共享" data-en="Start sharing">开始共享</span>
+    <span class="d" data-zh="从共享按钮弹出的浮层。选画质和音频，然后系统问你选哪块屏/哪个窗口。" data-en="Popover from the Share button. Pick quality and audio, then the system asks which screen or window.">从共享按钮弹出的浮层。选画质和音频，然后系统问你选哪块屏/哪个窗口。</span>
+  </div>
+  <div class="card">
+    <div class="panel-wrap">
+      <div class="panel">
+        <div class="tail"></div>
+        <h2 data-zh="共享你的屏幕" data-en="Share your screen">共享你的屏幕</h2>
+        <p class="sub" data-zh="房间里的每个人都会点对点看到你选的内容。" data-en="Everyone in the room sees what you pick, peer-to-peer.">房间里的每个人都会点对点看到你选的内容。</p>
+        <div class="qrow">
+          <div class="ql" data-zh="画质" data-en="Quality">画质</div>
+          <div class="seg" id="qseg">
+            <button class="on" data-q="1080">1080p</button>
+            <button data-q="720">720p</button>
+            <button data-q="480">480p</button>
+          </div>
+          <div class="qhint" id="qhint" data-zh="1080p · 最清晰，带宽占用最高。" data-en="1080p · sharpest. Uses the most bandwidth.">1080p · 最清晰，带宽占用最高。</div>
+        </div>
+        <div class="audrow">
+          <div class="nm"><span data-zh="共享电脑音频" data-en="Share computer audio">共享电脑音频</span><small data-zh="听众能听到你的系统声音" data-en="Listeners hear your system sound">听众能听到你的系统声音</small></div>
+          <button class="switch on" id="audSwitch" aria-label="Share audio"></button>
+        </div>
+        <p class="note"><span data-zh="继续后，" data-en="When you continue, "><b data-zh="系统会问你选哪块屏幕或窗口" data-en="your system will ask which screen or window">系统会问你选哪块屏幕或窗口</b><span data-zh="。Pivi 看不到这个选择——它只在你和系统之间。" data-en=" to share. Pivi never sees that choice - it stays between you and your OS.">。Pivi 看不到这个选择——它只在你和系统之间。</span></span></p>
+        <div class="panel-foot">
+          <button class="btn ghost"><span data-zh="取消" data-en="Cancel">取消</span></button>
+          <button class="btn primary"><span data-zh="开始共享" data-en="Start sharing">开始共享</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 07 YOU'RE SHARING (presenter) -->
+<section class="screen">
+  <div class="screen-label">
+    <span class="n">07</span><span class="t" data-zh="你在共享" data-en="You're sharing">你在共享</span>
+    <span class="d" data-zh="演示者视图：你的屏幕就在眼前，主区保持正常房间。右上小自预览只够瞥一眼确认在捕获，不挡聊天。需要时可拖走。" data-en="Presenter view: your screen is already in front of you, so the stage stays a normal room. A small self-view sits top-right - a glance to confirm capture, never blocking chat. Drag it aside if needed.">演示者视图：你的屏幕就在眼前，主区保持正常房间。右上小自预览只够瞥一眼确认在捕获，不挡聊天。需要时可拖走。</span>
+  </div>
+  <div class="card">
+    <div class="ch">
+      <aside class="rail">
+        <div class="rail-room">
+          <div class="name" data-zh="Mira 的房间" data-en="Mira's room">Mira 的房间</div>
+          <div class="freq"><span class="live"></span><span class="code">K7R2-M9QX-4B8F-L3NP</span><button class="copy" data-zh="复制" data-en="copy">复制</button></div>
+        </div>
+        <div class="you"><div class="av">H</div><div><div class="nm">HuangJin</div><div class="rl" data-zh="你 · 房主" data-en="you · host">你 · 房主</div></div></div>
+        <div class="mlist">
+          <div class="label" data-zh="在线 · 5" data-en="In room · 5">在线 · 5</div>
+          <div class="m"><span class="d on"></span><span class="n">HuangJin <span class="r you" data-zh="共享中" data-en="sharing">共享中</span></span></div>
+          <div class="m"><span class="d on"></span><span class="n">Mira <span class="r" data-zh="说话中" data-en="speaking">说话中</span></span></div>
+          <div class="m"><span class="d on"></span><span class="n">Kenji</span></div>
+          <div class="m"><span class="d muted"></span><span class="n">Aria <span class="r muted" data-zh="静音" data-en="muted">静音</span></span></div>
+          <div class="m"><span class="d on"></span><span class="n">Theo</span></div>
+        </div>
+      </aside>
+      <main class="main">
+        <div class="topbar">
+          <div class="conn"><span class="tick"></span><span data-zh="直连" data-en="Direct">直连</span><span class="p">· 38ms · <span data-zh="4 个节点" data-en="4 peers">4 个节点</span></span></div>
+          <div class="share-ind"><span class="ld"></span><span data-zh="你在共享" data-en="You're sharing">你在共享</span><span class="q">1080p</span></div>
+        </div>
+        <div class="chat">
+          <div class="msg"><div class="mh"><span class="ts">14:31</span><span class="sn">Mira</span></div><div class="bd" data-zh="正在看设计稿——左侧栏的间距感觉对了。" data-en="Looking at the mock now - the spacing on the left rail feels right.">正在看设计稿——左侧栏的间距感觉对了。</div></div>
+          <div class="msg"><div class="mh"><span class="ts">14:32</span><span class="sn">Kenji</span></div><div class="bd" data-zh="能往下滚到设置部分吗？" data-en="Can you scroll down to the settings part?">能往下滚到设置部分吗？</div></div>
+          <div class="msg"><div class="mh"><span class="ts">14:33</span><span class="sn me">HuangJin</span></div><div class="bd" data-zh="好，到了——快捷键那行。" data-en="Yeah, there - the hotkeys row.">好，到了——快捷键那行。</div></div>
+          <div class="msg"><div class="mh"><span class="ts">14:34</span><span class="sn">Mira</span></div><div class="bd" data-zh="不错，直连下没延迟，感觉很即时。" data-en="Nice. Lag's gone on the direct line, feels instant.">不错，直连下没延迟，感觉很即时。</div></div>
+        </div>
+        <div class="composer"><div class="f"><input placeholder="" data-zh-ph="给房间发消息" data-en-ph="Message the room" /><span class="lim">5 MB</span></div></div>
+        <div class="pip">
+          <div class="pip-frame">
+            <span class="live-tag">● live</span>
+            <div class="sm mini">
+              <div class="sm-bar"><i></i><i></i><i></i></div>
+              <div class="sm-body"><div class="sm-side"><div class="sm-th act"></div><div class="sm-th"></div><div class="sm-th"></div></div><div class="sm-main"><div class="sm-h"></div><div class="sm-grid"><div class="sm-card"></div><div class="sm-card"></div></div><div class="sm-line w70"></div></div></div>
+            </div>
+          </div>
+          <div class="pip-label"><span></span><span data-zh="你的共享屏幕" data-en="Your shared screen">你的共享屏幕</span><button class="stop" data-zh="停止" data-en="Stop">停止</button></div>
+        </div>
+        <div class="controls">
+          <button class="ctl on" aria-label="Mic"><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span class="lb" data-zh="麦克风" data-en="Mic">麦克风</span></button>
+          <button class="ctl on" aria-label="Sound"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8a5 5 0 0 1 0 8"/></svg></span><span class="lb" data-zh="音量" data-en="Sound">音量</span></button>
+          <button class="ctl on" aria-label="Sharing"><span class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg></span><span class="lb" data-zh="共享中" data-en="Sharing">共享中</span></button>
+          <button class="ctl" aria-label="Settings"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></span><span class="lb" data-zh="设置" data-en="Setup">设置</span></button>
+          <button class="ctl leave" aria-label="Leave"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></span><span class="lb" data-zh="离开" data-en="Leave">离开</span></button>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- 08 SHARE AVAILABLE -->
+<section class="screen">
+  <div class="screen-label">
+    <span class="n">08</span><span class="t" data-zh="共享可用" data-en="Share available">共享可用</span>
+    <span class="d" data-zh="有人在共享，但不会接管你的房间。入口在侧边栏——想看时点 View。主区保持正常房间。" data-en="Someone is sharing, but it doesn't take over your room. The affordance lives in the sidebar - click View when you want to watch.">有人在共享，但不会接管你的房间。入口在侧边栏——想看时点 View。主区保持正常房间。</span>
+  </div>
+  <div class="card">
+    <div class="ch">
+      <aside class="rail">
+        <div class="rail-room">
+          <div class="name" data-zh="Mira 的房间" data-en="Mira's room">Mira 的房间</div>
+          <div class="freq"><span class="live"></span><span class="code">K7R2-M9QX-4B8F-L3NP</span><button class="copy" data-zh="复制" data-en="copy">复制</button></div>
+        </div>
+        <div class="rail-share">
+          <div class="rs-thumb"><span class="d"></span></div>
+          <div class="rs-info"><div class="rs-who" data-zh="Mira 正在共享" data-en="Mira is sharing">Mira 正在共享</div><button class="rs-view">View -&gt;</button></div>
+        </div>
+        <div class="you"><div class="av">H</div><div><div class="nm">HuangJin</div><div class="rl" data-zh="你 · 房主" data-en="you · host">你 · 房主</div></div></div>
+        <div class="mlist">
+          <div class="label" data-zh="在线 · 5" data-en="In room · 5">在线 · 5</div>
+          <div class="m"><span class="d on"></span><span class="n">HuangJin <span class="r you" data-zh="你" data-en="you">你</span></span></div>
+          <div class="m"><span class="d share"></span><span class="n">Mira <span class="r" data-zh="共享中" data-en="sharing">共享中</span></span></div>
+          <div class="m"><span class="d on"></span><span class="n">Kenji</span></div>
+          <div class="m"><span class="d muted"></span><span class="n">Aria <span class="r muted" data-zh="静音" data-en="muted">静音</span></span></div>
+          <div class="m"><span class="d on"></span><span class="n">Theo</span></div>
+        </div>
+      </aside>
+      <main class="main">
+        <div class="topbar">
+          <div class="conn"><span class="tick"></span><span data-zh="直连" data-en="Direct">直连</span><span class="p">· 41ms · <span data-zh="4 个节点" data-en="4 peers">4 个节点</span></span></div>
+        </div>
+        <div class="chat">
+          <div class="msg"><div class="mh"><span class="ts">14:31</span><span class="sn">Mira</span></div><div class="bd" data-zh="刚开了新设计稿的共享。" data-en="Just started sharing the new mock.">刚开了新设计稿的共享。</div></div>
+          <div class="msg"><div class="mh"><span class="ts">14:32</span><span class="sn">Kenji</span></div><div class="bd" data-zh="准备好了从侧边栏打开。" data-en="Open it from the sidebar when you're ready.">准备好了从侧边栏打开。</div></div>
+          <div class="msg"><div class="mh"><span class="ts">14:33</span><span class="sn me">HuangJin</span></div><div class="bd" data-zh="稍等，我先说完这句。" data-en="Sec, finishing a thought first.">稍等，我先说完这句。</div></div>
+        </div>
+        <div class="composer"><div class="f"><input placeholder="" data-zh-ph="给房间发消息" data-en-ph="Message the room" /><span class="lim">5 MB</span></div></div>
+        <div class="controls">
+          <button class="ctl on" aria-label="Mic"><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span class="lb" data-zh="麦克风" data-en="Mic">麦克风</span></button>
+          <button class="ctl on" aria-label="Sound"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8a5 5 0 0 1 0 8"/></svg></span><span class="lb" data-zh="音量" data-en="Sound">音量</span></button>
+          <button class="ctl" aria-label="Share"><span class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg></span><span class="lb" data-zh="共享" data-en="Share">共享</span></button>
+          <button class="ctl" aria-label="Settings"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></span><span class="lb" data-zh="设置" data-en="Setup">设置</span></button>
+          <button class="ctl leave" aria-label="Leave"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></span><span class="lb" data-zh="离开" data-en="Leave">离开</span></button>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- 09 VIEWING -->
+<section class="screen">
+  <div class="screen-label">
+    <span class="n">09</span><span class="t" data-zh="观看共享" data-en="Viewing a share">观看共享</span>
+    <span class="d" data-zh="点击 View 之后。对方屏幕占满主区，带活 teal 边框。没有停止；可全屏。关闭返回房间。" data-en="After you click View. Their screen fills your stage with a live teal frame. No Stop; you get fullscreen. Close to return to the room.">点击 View 之后。对方屏幕占满主区，带活 teal 边框。没有停止；可全屏。关闭返回房间。</span>
+  </div>
+  <div class="card">
+    <div class="ch">
+      <aside class="rail">
+        <div class="rail-room">
+          <div class="name" data-zh="Mira 的房间" data-en="Mira's room">Mira 的房间</div>
+          <div class="freq"><span class="live"></span><span class="code">K7R2-M9QX-4B8F-L3NP</span><button class="copy" data-zh="复制" data-en="copy">复制</button></div>
+        </div>
+        <div class="you"><div class="av">H</div><div><div class="nm">HuangJin</div><div class="rl" data-zh="你 · 房主" data-en="you · host">你 · 房主</div></div></div>
+        <div class="mlist">
+          <div class="label" data-zh="在线 · 5" data-en="In room · 5">在线 · 5</div>
+          <div class="m"><span class="d on"></span><span class="n">HuangJin <span class="r you" data-zh="你" data-en="you">你</span></span></div>
+          <div class="m"><span class="d share"></span><span class="n">Mira <span class="r" data-zh="共享中" data-en="sharing">共享中</span></span></div>
+          <div class="m"><span class="d on"></span><span class="n">Kenji</span></div>
+          <div class="m"><span class="d muted"></span><span class="n">Aria <span class="r muted" data-zh="静音" data-en="muted">静音</span></span></div>
+          <div class="m"><span class="d on"></span><span class="n">Theo</span></div>
+        </div>
+      </aside>
+      <main class="main">
+        <div class="topbar"><div class="conn"><span class="tick"></span><span data-zh="直连" data-en="Direct">直连</span><span class="p">· 41ms · <span data-zh="4 个节点" data-en="4 peers">4 个节点</span></span></div></div>
+        <div class="share-bar"><span class="ld"></span><span class="who" data-zh="Mira 正在共享" data-en="Mira is sharing">Mira 正在共享</span><span class="q">1080p</span><div class="right"><button class="btn ghost sm"><span data-zh="全屏" data-en="Fullscreen">全屏</span></button></div></div>
+        <div class="stage">
+          <div class="screen-frame">
+            <span class="live-tag">● live</span>
+            <div class="sm"><div class="sm-bar"><i></i><i></i><i></i><span class="t">design-v3 - Pivi</span></div><div class="sm-body"><div class="sm-side"><div class="sm-th act"></div><div class="sm-th"></div><div class="sm-th"></div><div class="sm-th"></div></div><div class="sm-main"><div class="sm-h"></div><div class="sm-grid"><div class="sm-card"></div><div class="sm-card"></div><div class="sm-card"></div></div><div class="sm-line w90"></div><div class="sm-line w70"></div><div class="sm-line w50"></div></div></div></div>
+          </div>
+          <div class="peek"><span data-zh="2 条新消息" data-en="2 new messages">2 条新消息</span><span class="ct">Kenji</span></div>
+        </div>
+        <div class="controls">
+          <button class="ctl on" aria-label="Mic"><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span class="lb" data-zh="麦克风" data-en="Mic">麦克风</span></button>
+          <button class="ctl on" aria-label="Sound"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8a5 5 0 0 1 0 8"/></svg></span><span class="lb" data-zh="音量" data-en="Sound">音量</span></button>
+          <button class="ctl" aria-label="Share"><span class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg></span><span class="lb" data-zh="共享" data-en="Share">共享</span></button>
+          <button class="ctl" aria-label="Settings"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></span><span class="lb" data-zh="设置" data-en="Setup">设置</span></button>
+          <button class="ctl leave" aria-label="Leave"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></span><span class="lb" data-zh="离开" data-en="Leave">离开</span></button>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- 10 FULLSCREEN -->
+<section class="screen">
+  <div class="screen-label">
+    <span class="n">10</span><span class="t" data-zh="全屏聚焦" data-en="Fullscreen focus">全屏聚焦</span>
+    <span class="d" data-zh="点击共享屏幕可聚焦。屏幕上几乎只剩流和浮动药丸——控件自动隐藏。" data-en="Click the shared screen to focus. Almost nothing on screen except the stream and a floating pill - controls auto-hide.">点击共享屏幕可聚焦。屏幕上几乎只剩流和浮动药丸——控件自动隐藏。</span>
+  </div>
+  <div class="card">
+    <div class="fs">
+      <div class="screen-frame">
+        <span class="live-tag">● live</span>
+        <div class="sm"><div class="sm-bar"><i></i><i></i><i></i><span class="t">design-v3 - Pivi</span></div><div class="sm-body"><div class="sm-side"><div class="sm-th act"></div><div class="sm-th"></div><div class="sm-th"></div><div class="sm-th"></div></div><div class="sm-main"><div class="sm-h"></div><div class="sm-grid"><div class="sm-card"></div><div class="sm-card"></div><div class="sm-card"></div></div><div class="sm-line w90"></div><div class="sm-line w70"></div><div class="sm-line w50"></div></div></div></div>
+      </div>
+      <div class="fs-pill">
+        <span class="ld"></span>
+        <span class="who" data-zh="Mira 正在共享" data-en="Mira is sharing">Mira 正在共享</span>
+        <span class="sep">·</span><span class="q">1080p</span>
+        <span class="sep">·</span>
+        <span class="conn"><span class="tick"></span><span data-zh="直连 38ms" data-en="Direct 38ms">直连 38ms</span></span>
+        <button data-zh="退出全屏" data-en="Exit fullscreen">退出全屏</button>
+      </div>
+    </div>
+    <div class="fs-hint" data-zh="移动鼠标显示控件，片刻后淡出。" data-en="Move the mouse to show controls. They fade after a moment.">移动鼠标显示控件，片刻后淡出。</div>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  /* theme */
+  var t=localStorage.getItem('pivi-theme');if(t==='light'||t==='dark')root.setAttribute('data-theme',t);
+  var tt=document.getElementById('themeTog');
+  function syncTheme(){var v=root.getAttribute('data-theme');tt.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.set===v)})}
+  syncTheme();
+  tt.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;root.setAttribute('data-theme',b.dataset.set);localStorage.setItem('pivi-theme',b.dataset.set);syncTheme()});
+
+  /* language */
+  var L=localStorage.getItem('pivi-lang');if(L==='en'||L==='zh')root.setAttribute('data-lang',L);
+  var lt=document.getElementById('langTog');
+  function applyLang(lang){
+    root.setAttribute('data-lang',lang);
+    document.querySelectorAll('[data-zh]').forEach(function(el){
+      if(el.hasAttribute('data-en')){var v=el.getAttribute('data-'+lang);if(v!=null)el.textContent=v}
+    });
+    document.querySelectorAll('[data-zh-ph]').forEach(function(el){el.setAttribute('placeholder',el.getAttribute('data-'+lang+'-ph'))});
+    lt.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.set===lang)});
+    localStorage.setItem('pivi-lang',lang);
+  }
+  syncLang();
+  function syncLang(){applyLang(root.getAttribute('data-lang'))}
+  lt.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;applyLang(b.dataset.set)});
+
+  /* connection P2P / Relay */
+  var toggle=document.getElementById('toggle'),tick=document.getElementById('tick'),connTx=document.getElementById('connTx');
+  if(toggle){
+    toggle.addEventListener('click',function(e){
+      var b=e.target.closest('button');if(!b)return;var p=b.dataset.p;
+      toggle.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b)});
+      if(tick){
+        if(p==='relay'){tick.classList.add('relay')}
+        else{tick.classList.remove('relay')}
+      }
+    });
+  }
+
+  /* start panel: quality + audio */
+  var qseg=document.getElementById('qseg'),qhint=document.getElementById('qhint');
+  if(qseg){
+    var hints={
+      zh:{'1080':'1080p · 最清晰，带宽占用最高。','720':'720p · 均衡，多数房间的默认选择。','480':'480p · 最省，慢链路首选。'},
+      en:{'1080':'1080p · sharpest. Uses the most bandwidth.','720':'720p · balanced. Good default for most rooms.','480':'480p · lightest. Best on slow links.'}
+    };
+    qseg.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;qseg.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b)});var lang=root.getAttribute('data-lang');qhint.textContent=hints[lang][b.dataset.q];qhint.setAttribute('data-zh',hints.zh[b.dataset.q]);qhint.setAttribute('data-en',hints.en[b.dataset.q])});
+  }
+  var sw=document.getElementById('audSwitch');if(sw)sw.addEventListener('click',function(){sw.classList.toggle('on')});
+})();
+</script>
+</body>
+</html>
