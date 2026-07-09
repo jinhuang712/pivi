@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { RoomNetworkPath } from '../types/channel';
 import type { ChatMessage } from '../types/channel';
 import { T, useLang } from '../providers';
@@ -8,6 +8,10 @@ interface MainAreaProps {
   onLeave?: () => void;
   isMicMuted?: boolean;
   onToggleMic?: () => void;
+  isScreenSharing?: boolean;
+  onStartShare?: (opts: { quality: string; includeSystemAudio: boolean }) => void;
+  onStopShare?: () => void;
+  localScreenStream?: MediaStream | null;
   currentUserName: string;
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
@@ -29,6 +33,10 @@ const MainArea: React.FC<MainAreaProps> = ({
   onLeave,
   isMicMuted: isMicMutedProp,
   onToggleMic,
+  isScreenSharing,
+  onStartShare,
+  onStopShare,
+  localScreenStream,
   currentUserName,
   messages,
   onSendMessage,
@@ -36,12 +44,19 @@ const MainArea: React.FC<MainAreaProps> = ({
   networkNotice,
 }) => {
   const { lang } = useLang();
-  const [isSharing, setIsSharing] = useState(false);
   const [showStartPanel, setShowStartPanel] = useState(false);
   const [quality, setQuality] = useState<'1080' | '720' | '480'>('1080');
   const [shareAudio, setShareAudio] = useState(true);
   const [internalMicMuted, setInternalMicMuted] = useState(false);
+  const [internalSharing, setInternalSharing] = useState(false);
+  const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [showError, setShowError] = useState(false);
+  const pipVideoRef = useRef<HTMLVideoElement | null>(null);
+
   const isMicMuted = isMicMutedProp ?? internalMicMuted;
+  const isSharing = isScreenSharing ?? internalSharing;
+
   const handleMicToggle = () => {
     if (onToggleMic) {
       onToggleMic();
@@ -49,15 +64,13 @@ const MainArea: React.FC<MainAreaProps> = ({
     }
     setInternalMicMuted((v) => !v);
   };
-  const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const [showError, setShowError] = useState(false);
 
   const isRelay = networkPath === 'relay';
   const qhints = {
     zh: { '1080': '1080p · 最清晰，带宽占用最高。', '720': '720p · 均衡，多数房间默认。', '480': '480p · 最省，慢链路首选。' },
     en: { '1080': '1080p · sharpest. Most bandwidth.', '720': '720p · balanced. Good default.', '480': '480p · lightest. Slow links.' },
   };
+  const qualityPreset = quality === '1080' ? '1080p' : '720p';
 
   const handleSend = () => {
     if (!inputValue.trim()) return;
@@ -74,15 +87,30 @@ const MainArea: React.FC<MainAreaProps> = ({
     setTimeout(() => setShowError(false), 3000);
   };
 
-  const startSharing = () => {
+  const handleStartShare = () => {
     setShowStartPanel(false);
-    setIsSharing(true);
+    const opts = { quality: qualityPreset, includeSystemAudio: shareAudio };
+    if (onStartShare) {
+      onStartShare(opts);
+    } else {
+      setInternalSharing(true);
+    }
   };
 
-  const stopSharing = () => {
-    setIsSharing(false);
+  const handleStopShare = () => {
     setShowStartPanel(false);
+    if (onStopShare) {
+      onStopShare();
+    } else {
+      setInternalSharing(false);
+    }
   };
+
+  useEffect(() => {
+    if (pipVideoRef.current && localScreenStream) {
+      pipVideoRef.current.srcObject = localScreenStream;
+    }
+  }, [localScreenStream, isSharing]);
 
   return (
     <main className="main">
@@ -163,7 +191,7 @@ const MainArea: React.FC<MainAreaProps> = ({
         <div style={{ position: 'relative' }}>
           <button
             className={`ctl ${isSharing ? 'on' : ''}`}
-            onClick={() => (isSharing ? stopSharing() : setShowStartPanel((v) => !v))}
+            onClick={() => (isSharing ? handleStopShare() : setShowStartPanel((v) => !v))}
             aria-label="Screen share"
           >
             <span className="ic">{Icons.share}</span>
@@ -195,7 +223,7 @@ const MainArea: React.FC<MainAreaProps> = ({
                 </p>
                 <div className="panel-foot">
                   <button className="btn ghost" onClick={() => setShowStartPanel(false)}><T zh="取消" en="Cancel" /></button>
-                  <button className="btn primary" onClick={startSharing}><T zh="开始共享" en="Start sharing" /></button>
+                  <button className="btn primary" onClick={handleStartShare}><T zh="开始共享" en="Start sharing" /></button>
                 </div>
               </div>
             </div>
@@ -216,14 +244,24 @@ const MainArea: React.FC<MainAreaProps> = ({
         <div className="pip">
           <div className="pip-frame">
             <span className="live-tag">● live</span>
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 11 }}>
-              <T zh="你的屏幕" en="your screen" />
-            </div>
+            {localScreenStream ? (
+              <video
+                ref={pipVideoRef}
+                autoPlay
+                muted
+                playsInline
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 11 }}>
+                <T zh="你的屏幕" en="your screen" />
+              </div>
+            )}
           </div>
           <div className="pip-label">
             <span />
             <span><T zh="你的共享屏幕" en="Your shared screen" /></span>
-            <button className="stop" onClick={stopSharing}><T zh="停止" en="Stop" /></button>
+            <button className="stop" onClick={handleStopShare}><T zh="停止" en="Stop" /></button>
           </div>
         </div>
       )}

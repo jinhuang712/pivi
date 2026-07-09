@@ -18,6 +18,8 @@ import { createControlSession } from "./lib/controlSession";
 import { createWebRtcSession } from "./media/webrtcSession";
 import { useLocalAudio } from "./media/useLocalAudio";
 import { useHotkeys } from "./media/useHotkeys";
+import { useScreenShare } from "./media/useScreenShare";
+import type { ShareQualityPreset } from "./media/screenShare";
 import { AudioControlEngine } from "./media/audioControl";
 import { loadHotkeys } from "./lib/hotkeySettings";
 import { appendRuntimeLog, buildRuntimeDiagnosticsText } from "./lib/runtimeLog";
@@ -110,6 +112,8 @@ function AppShell() {
     onPttUp: () => localAudio.setMuted(true),
     onMuteToggle: localAudio.toggleMute,
   });
+
+  const screenShare = useScreenShare();
 
   const currentUserIsHost = members.find((m) => m.id === currentUserId)?.isHost ?? false;
   const controlSessionRef = useRef<ReturnType<typeof createControlSession> | null>(null);
@@ -462,7 +466,28 @@ function AppShell() {
     setAppState('channel');
   };
 
+  const handleStartShare = async (opts: { quality: string; includeSystemAudio: boolean }) => {
+    const stream = await screenShare.start({
+      quality: opts.quality as ShareQualityPreset,
+      includeSystemAudio: opts.includeSystemAudio,
+    });
+    if (!stream) {
+      return;
+    }
+    const track = stream.getVideoTracks()[0];
+    if (track) {
+      peerSessionsRef.current.forEach((session) => {
+        void session.addTrack(track, stream);
+      });
+    }
+  };
+
+  const handleStopShare = () => {
+    screenShare.stop();
+  };
+
   const handleLeave = () => {
+    screenShare.stop();
     controlSessionRef.current?.stop();
     controlSessionRef.current = null;
     peerSessionsRef.current.forEach((session, peerId) => {
@@ -551,6 +576,10 @@ function AppShell() {
             onLeave={handleLeave}
             isMicMuted={localAudio.isMuted}
             onToggleMic={localAudio.toggleMute}
+            isScreenSharing={screenShare.isSharing}
+            onStartShare={handleStartShare}
+            onStopShare={handleStopShare}
+            localScreenStream={screenShare.stream}
             currentUserName={currentUserName}
             messages={messages}
             networkPath={networkPath}
