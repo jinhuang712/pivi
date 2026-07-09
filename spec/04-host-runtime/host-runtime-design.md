@@ -25,6 +25,33 @@
 - **启动稳态**：在 UI 展示邀请码前完成端口监听、最优入口选择、可达性探测与邀请码签发。
 - **内存与 CPU 约束**：房主作为“服务器”，需保证在游戏（如高负载 3A 大作）运行时不抢占过多资源，最高 CPU 占用应控制在单核的 10% 以内。
 
+## Windows 优先要求（Phase 8）
+
+- Host Runtime 的第一目标不是“公网万能可达”，而是“Windows 实机上可稳定启动、可诊断、可在局域网真实接入”。
+- Runtime 必须显式输出以下可诊断信息：
+  - 本机优选 IPv4
+  - 实际监听地址与端口
+  - NAT 映射探测结果
+  - 邀请码主入口与候选入口列表
+  - 加入授权结果
+  - Relay 启用原因
+- Windows 环境下若 NAT 映射不可用，Runtime 仍必须进入 `Ready`，但邀请码状态中要标注“局域网优先 / 可能需要同网”。
+
+## 控制面状态机（Phase 8.1）
+
+- `Idle`
+- `Binding`
+- `Ready`
+- `AcceptingJoin`
+- `Relaying`
+- `Failed`
+
+状态机约束：
+
+- UI 仅在 `Ready` 之后展示邀请码。
+- `JOIN_ROOM` 必须经过 `HostAuthGate` 与 `RoomState` 双重校验后，才允许进入 `ROOM_STATE` 广播。
+- 房间成员变化必须由 Runtime 统一生成 `ROOM_STATE / MEMBER_JOINED / MEMBER_LEFT`，前端不得自行拼接成员态。
+
 ## 数据结构（概念）
 
 - Room：roomId、hostId、createdAt、policy

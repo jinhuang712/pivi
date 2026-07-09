@@ -56,3 +56,12 @@ flowchart LR
 - 增加多候选入口编码与优先级切换
 - 引入主机迁移（Host Failover）
 - 引入细粒度权限角色体系
+
+## Windows 优先实现约束（Phase 8）
+
+- 当前主线保持 **完全无云**，不引入中心化房间注册或信令后端。
+- Windows 版本必须作为第一验收基线：
+  - Windows Host -> Windows Join 必须最先打通
+  - Windows Host -> macOS Join / macOS Host -> Windows Join 作为第二梯队验收
+- “房间已创建 / 已加入”的 UI 状态必须来自真实 Host Runtime 回包，而非前端本地模拟。
+- 控制面与媒体面都必须为“房主 Runtime 优先 + 房主本地 Relay 兜底”的无云拓扑服务。

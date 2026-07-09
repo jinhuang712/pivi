@@ -4,9 +4,9 @@
 
 ## 📊 当前进度概览
 
-- **总体进度**：� MVP 100%，Phase 7 已完成
-- **当前阶段**：Phase 7 (统一邀请码与连接稳定性实现)
-- **最新交付**：完成 0.2.0 发布收尾：汇总 Phase 7 全部能力、接入 NAT 映射发布版，并为 Windows 发布链路补充 NAT 映射降级兼容。
+- **总体进度**：🟢 MVP 100%，Phase 8 进行中
+- **当前阶段**：Phase 8 (Windows 优先的真实房间互通)
+- **最新交付**：启动 Phase 8.3 第一阶段：前端已新增 `webrtcSession` 协商层，控制会话开始真实承载定向 `Offer / Answer / ICE` 信令收发。
 
 ---
 
@@ -74,6 +74,13 @@
 - [x] 7.3 **建房就绪门禁**：Host Runtime 在监听、自检、端口映射完成前不展示邀请码。
 - [x] 7.4 **入口稳定性增强**：完成固定端口池、历史成功端口复用与 `UPnP / NAT-PMP / PCP` 探测/映射首版接入；Windows 发布版对 NAT 映射采用兼容降级。
 - [x] 7.5 **入房提速与失败回退**：完成入口预检、短超时快速重试、错误分层提示与 Relay Fallback 首版联动。
+
+### Phase 8: Windows 优先的真实房间互通（🟡 进行中）
+- [ ] 8.1 **真实控制面接线**：已完成 HostRuntimeSessionManager、控制面 TCP 请求处理、远端 `ROOM_STATE/JOIN_ROOM` 首版接线、增量事件流、持续 control session 基线，以及定向 WebRTC 信令事件承载；Join/Channel 主流程已开始摆脱本地模拟并改由 Runtime 事件/回包驱动。
+- [ ] 8.2 **真实成员同步**：成员列表与房间状态完全来源于 Runtime `ROOM_STATE / MEMBER_JOINED / MEMBER_LEFT`。
+- [ ] 8.3 **真实 WebRTC 协商闭环**：已完成前端 `webrtcSession` 基线、定向信令事件承载与 `Offer / Answer / ICE` 首版接线；尚未完成真实媒体轨与端到端 P2P 建链闭环。
+- [ ] 8.4 **Windows 优先诊断**：落地文件日志、会话日志导出与防火墙/端口失败分类提示。
+- [ ] 8.5 **跨平台验收**：完成 Windows ↔ Windows、Windows ↔ macOS 的无 VPN 互通验证。
 
 ---
 

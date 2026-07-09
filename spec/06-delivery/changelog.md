@@ -37,3 +37,11 @@
 - **2026-03-27**: 完成 Phase 7.4 NAT 映射协议接入首版：新增 `nat_mapping.rs`，通过 `portmapper` 接入 UPnP / NAT-PMP / PCP 探测与 TCP 端口映射，并将公网映射结果并入 `room_preparation.rs` 的邀请码签发流程。
 - **2026-03-27**: 准备发布 `0.2.0`：同步 `package.json`、`package-lock.json`、`Cargo.toml`、`Cargo.lock` 与 `tauri.conf.json` 版本号，并基于当前稳定构建流程生成发布产物。
 - **2026-03-27**: 为 `0.2.0` Windows 发布补充兼容降级：将 `portmapper` 调整为非 Windows 目标依赖，Windows 打包时对 NAT 映射能力回退为固定端口/Relay 流程，避免上游 `wmi/windows_core` 依赖冲突阻塞发布。
+- **2026-03-27**: 启动 Phase 8 Plan A 设计：针对 Windows 与 macOS 房间不互通问题，新增 `windows-first-runtime-interop.md` 与 `test-cross-platform-runtime.md`，明确真实 Host/Join Runtime 接线与跨平台验收方向。
+- **2026-03-27**: 将 Phase 8 明确为“完全无云”主线：同步系统架构、NAT 策略、Host Runtime 与跨平台测试文档，确立“真实 Host/Join Runtime + 房主本地 Relay + 多候选入口”方案。
+- **2026-03-27**: 推进 Phase 8.1 第二步首版：新增 `host_runtime_session.rs` 与 `control_runtime.rs`，Host Runtime 已支持真实控制面会话、远端 `ROOM_STATE/JOIN_ROOM` 请求处理；前端加入确认与频道页成员同步开始切换为 Runtime 回包驱动。
+- **2026-03-27**: 推进 Phase 8.1 第三步首版：`App.tsx` 已去除对本地房间注册表的主路径依赖，加入预览、房间名、在线人数与频道成员列表进一步切换为真实 Runtime `ROOM_STATE` 回包驱动。
+- **2026-03-27**: 推进 Phase 8.1 第四步首版：`host_runtime_session.rs` 新增顺序事件流，`control_runtime.rs` 补齐 `GetEvents` 本地/远端请求；前端频道页开始使用增量事件同步基线，减少对全量 `ROOM_STATE` 轮询的依赖。
+- **2026-03-27**: 推进 Phase 8.1 第五步首版：新增 `controlSession.ts` 持续控制会话层，并为 `HostRuntimeReady / JoinRuntimeAccepted` 补充 `latestSequence`；前端已将 Runtime 事件轮询收敛为统一会话同步逻辑，为后续长连接控制面替换做准备。
+- **2026-03-27**: 推进 Phase 8.1 第六步首版：为控制会话补齐定向 WebRTC 信令承载，`host_runtime_session.rs` 新增目标成员过滤事件与 `relay_webrtc_signal`，`control_runtime.rs` 增加 `RelaySignal` / 按订阅成员获取事件的远端请求能力，为后续 Offer/Answer/ICE 接线奠定基础。
+- **2026-03-27**: 启动 Phase 8.3 第一阶段：新增 `webrtcSession.ts` 与对应单测，前端已开始通过 control session 发送/接收定向 `Offer / Answer / ICE` 信令；`App.tsx` 在 Host 侧成员加入时尝试发起首版 Offer，并在收到远端 WebRTC 信令事件时进入协商处理路径。

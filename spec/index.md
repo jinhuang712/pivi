@@ -37,10 +37,12 @@
   - [detailed-tech-design.md](./08-technical-design/detailed-tech-design.md)
   - [invite-shortcode.md](./08-technical-design/invite-shortcode.md)
   - [hotkeys-global.md](./08-technical-design/hotkeys-global.md)
+  - [windows-first-runtime-interop.md](./08-technical-design/windows-first-runtime-interop.md)
 - **09-testing/**: TDD 测试策略与用例定义
   - [test-strategy.md](./09-testing/test-strategy.md)
   - [test-invite-shortcode.md](./09-testing/test-invite-shortcode.md)
   - [test-hotkeys.md](./09-testing/test-hotkeys.md)
+  - [test-cross-platform-runtime.md](./09-testing/test-cross-platform-runtime.md)
 
 ## 阅读顺序建议
 
