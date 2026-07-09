@@ -15,6 +15,7 @@ interface SidebarProps {
   onServerMute?: (id: string) => void;
   onKick?: (id: string) => void;
   onBan?: (id: string) => void;
+  onTransferHost?: (id: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -29,6 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onServerMute,
   onKick,
   onBan,
+  onTransferHost,
 }) => {
   const [copied, setCopied] = useState(false);
   const { lang } = useLang();
@@ -85,6 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             onServerMute={onServerMute}
             onKick={onKick}
             onBan={onBan}
+            onTransferHost={onTransferHost}
           />
         ))}
       </div>

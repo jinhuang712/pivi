@@ -109,3 +109,46 @@ export const kickHostRuntimeMember = (payload: { roomId: string; memberId: strin
 /** Host-only: remove a member and reject any future rejoin from them. */
 export const banHostRuntimeMember = (payload: { roomId: string; memberId: string }) =>
   invoke<SignalRelayAccepted>('ban_host_runtime_member', payload);
+
+/** Host-only (runtime owner): transfer the host role to another member. */
+export const transferHostRuntimeMember = (payload: { roomId: string; newHostId: string }) =>
+  invoke<SignalRelayAccepted>('transfer_host_runtime_member', payload);
+
+/**
+ * Remote host management. The host (by role) may be a joiner connected to the
+ * runtime-owning host, so these go over the control plane. `hostMemberId` is
+ * the requesting host; the runtime rejects the call unless they actually hold
+ * the Host role.
+ */
+export const transferHostRemoteRuntimeMember = (payload: {
+  ipv4: string;
+  port: number;
+  roomId: string;
+  hostMemberId: string;
+  newHostId: string;
+}) => invoke<SignalRelayAccepted>('transfer_host_remote_runtime_member', payload);
+
+export const serverMuteRemoteRuntimeMember = (payload: {
+  ipv4: string;
+  port: number;
+  roomId: string;
+  hostMemberId: string;
+  memberId: string;
+  serverMuted: boolean;
+}) => invoke<SignalRelayAccepted>('server_mute_remote_runtime_member', payload);
+
+export const kickRemoteRuntimeMember = (payload: {
+  ipv4: string;
+  port: number;
+  roomId: string;
+  hostMemberId: string;
+  memberId: string;
+}) => invoke<SignalRelayAccepted>('kick_remote_runtime_member', payload);
+
+export const banRemoteRuntimeMember = (payload: {
+  ipv4: string;
+  port: number;
+  roomId: string;
+  hostMemberId: string;
+  memberId: string;
+}) => invoke<SignalRelayAccepted>('ban_remote_runtime_member', payload);

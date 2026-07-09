@@ -27,16 +27,21 @@ import { loadHotkeys } from "./lib/hotkeySettings";
 import { appendRuntimeLog, buildRuntimeDiagnosticsText } from "./lib/runtimeLog";
 import {
   banHostRuntimeMember,
+  banRemoteRuntimeMember,
   getHostRuntimeRoomEvents,
   getHostRuntimeRoomState,
   getRemoteHostRuntimeRoomEvents,
   getRemoteHostRuntimeRoomState,
   joinRemoteHostRuntimeSession,
   kickHostRuntimeMember,
+  kickRemoteRuntimeMember,
   relayHostRuntimeSignal,
   relayRemoteRuntimeSignal,
   serverMuteHostRuntimeMember,
+  serverMuteRemoteRuntimeMember,
   startHostRuntimeSession,
+  transferHostRemoteRuntimeMember,
+  transferHostRuntimeMember,
 } from "./lib/runtimeSession";
 import type { JoinPreview, RoomMember, ChatMessage, RoomNetworkPath } from "./types/channel";
 import type { ControlRuntimeMessage, MemberSnapshot, RoomBroadcastMessage, WebRtcSignalMessage } from "./types/runtimeSession";
@@ -371,6 +376,18 @@ function AppShell() {
       }
       return;
     }
+
+    if (broadcast.type === 'HostChanged') {
+      const { previousHostId, newHostId } = broadcast.payload;
+      setMembers((prev) =>
+        prev.map((m) => {
+          if (m.id === newHostId) return { ...m, isHost: true };
+          if (m.id === previousHostId) return { ...m, isHost: false };
+          return m;
+        }),
+      );
+      return;
+    }
   };
 
   useEffect(() => {
@@ -636,22 +653,31 @@ function AppShell() {
     screenShare.stop();
   };
 
-  // --- Host management (server-mute / kick / ban) -----------------------------
-  // These are host-only; the host runs the runtime in-process, so they call the
-  // local *HostRuntime* commands (no remote relay). The emitted broadcasts reach
-  // every member — including joiners via the remote poll path — and the host's
-  // own subscriber loop updates its members list too.
+  // --- Host management (server-mute / kick / ban / transfer host) -------------
+  // The host (by role) manages the room. If this client owns the runtime
+  // (no remote endpoint), commands go local; otherwise the host is a joiner and
+  // the call is relayed over the control plane with a host-authority check.
+  // The resulting broadcasts reach every member via the poll path.
   const handleServerMute = async (memberId: string) => {
     const roomId = activeRoomIdRef.current;
     if (!roomId) return;
     const target = membersRef.current.find((m) => m.id === memberId);
     if (!target) return;
+    const serverMuted = !target.serverMuted;
     try {
-      await serverMuteHostRuntimeMember({
-        roomId,
-        memberId,
-        serverMuted: !target.serverMuted,
-      });
+      const endpoint = activeRemoteEndpointRef.current;
+      if (endpoint) {
+        await serverMuteRemoteRuntimeMember({
+          ipv4: endpoint.host,
+          port: endpoint.port,
+          roomId,
+          hostMemberId: currentUserId,
+          memberId,
+          serverMuted,
+        });
+      } else {
+        await serverMuteHostRuntimeMember({ roomId, memberId, serverMuted });
+      }
     } catch (error) {
       appendRuntimeLog('warn', 'host-manage', error instanceof Error ? error.message : '闭麦失败');
     }
@@ -661,7 +687,18 @@ function AppShell() {
     const roomId = activeRoomIdRef.current;
     if (!roomId) return;
     try {
-      await kickHostRuntimeMember({ roomId, memberId });
+      const endpoint = activeRemoteEndpointRef.current;
+      if (endpoint) {
+        await kickRemoteRuntimeMember({
+          ipv4: endpoint.host,
+          port: endpoint.port,
+          roomId,
+          hostMemberId: currentUserId,
+          memberId,
+        });
+      } else {
+        await kickHostRuntimeMember({ roomId, memberId });
+      }
     } catch (error) {
       appendRuntimeLog('warn', 'host-manage', error instanceof Error ? error.message : '踢出失败');
     }
@@ -671,9 +708,41 @@ function AppShell() {
     const roomId = activeRoomIdRef.current;
     if (!roomId) return;
     try {
-      await banHostRuntimeMember({ roomId, memberId });
+      const endpoint = activeRemoteEndpointRef.current;
+      if (endpoint) {
+        await banRemoteRuntimeMember({
+          ipv4: endpoint.host,
+          port: endpoint.port,
+          roomId,
+          hostMemberId: currentUserId,
+          memberId,
+        });
+      } else {
+        await banHostRuntimeMember({ roomId, memberId });
+      }
     } catch (error) {
       appendRuntimeLog('warn', 'host-manage', error instanceof Error ? error.message : '拉黑失败');
+    }
+  };
+
+  const handleTransferHost = async (memberId: string) => {
+    const roomId = activeRoomIdRef.current;
+    if (!roomId) return;
+    try {
+      const endpoint = activeRemoteEndpointRef.current;
+      if (endpoint) {
+        await transferHostRemoteRuntimeMember({
+          ipv4: endpoint.host,
+          port: endpoint.port,
+          roomId,
+          hostMemberId: currentUserId,
+          newHostId: memberId,
+        });
+      } else {
+        await transferHostRuntimeMember({ roomId, newHostId: memberId });
+      }
+    } catch (error) {
+      appendRuntimeLog('warn', 'host-manage', error instanceof Error ? error.message : '移交房主失败');
     }
   };
 
@@ -769,6 +838,7 @@ function AppShell() {
             onServerMute={handleServerMute}
             onKick={handleKick}
             onBan={handleBan}
+            onTransferHost={handleTransferHost}
           />
           <MainArea
             onOpenSettings={() => setIsSettingsOpen(true)}

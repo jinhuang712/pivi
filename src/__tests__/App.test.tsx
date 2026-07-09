@@ -156,6 +156,31 @@ const runtimeSessionMocks = vi.hoisted(() => ({
     targetMemberId: null,
     message: { type: 'RoomBroadcast', payload: { type: 'MemberLeft', payload: { memberId: 'uuid-guest' } } },
   })),
+  transferHostRuntimeMember: vi.fn(async () => ({
+    sequence: 13,
+    targetMemberId: null,
+    message: { type: 'RoomBroadcast', payload: { type: 'HostChanged', payload: { previousHostId: 'uuid-joiner', newHostId: 'uuid-guest' } } },
+  })),
+  transferHostRemoteRuntimeMember: vi.fn(async () => ({
+    sequence: 14,
+    targetMemberId: null,
+    message: { type: 'RoomBroadcast', payload: { type: 'HostChanged', payload: { previousHostId: 'uuid-joiner', newHostId: 'uuid-guest' } } },
+  })),
+  serverMuteRemoteRuntimeMember: vi.fn(async () => ({
+    sequence: 15,
+    targetMemberId: null,
+    message: { type: 'RoomBroadcast', payload: { type: 'MemberServerMuted', payload: { memberId: 'uuid-guest', serverMuted: true } } },
+  })),
+  kickRemoteRuntimeMember: vi.fn(async () => ({
+    sequence: 16,
+    targetMemberId: null,
+    message: { type: 'RoomBroadcast', payload: { type: 'MemberLeft', payload: { memberId: 'uuid-guest' } } },
+  })),
+  banRemoteRuntimeMember: vi.fn(async () => ({
+    sequence: 17,
+    targetMemberId: null,
+    message: { type: 'RoomBroadcast', payload: { type: 'MemberLeft', payload: { memberId: 'uuid-guest' } } },
+  })),
 }));
 
 vi.mock('../lib/inviteCode', async (importOriginal) => {
@@ -184,6 +209,11 @@ vi.mock('../lib/runtimeSession', () => ({
   serverMuteHostRuntimeMember: runtimeSessionMocks.serverMuteHostRuntimeMember,
   kickHostRuntimeMember: runtimeSessionMocks.kickHostRuntimeMember,
   banHostRuntimeMember: runtimeSessionMocks.banHostRuntimeMember,
+  transferHostRuntimeMember: runtimeSessionMocks.transferHostRuntimeMember,
+  transferHostRemoteRuntimeMember: runtimeSessionMocks.transferHostRemoteRuntimeMember,
+  serverMuteRemoteRuntimeMember: runtimeSessionMocks.serverMuteRemoteRuntimeMember,
+  kickRemoteRuntimeMember: runtimeSessionMocks.kickRemoteRuntimeMember,
+  banRemoteRuntimeMember: runtimeSessionMocks.banRemoteRuntimeMember,
 }));
 
 vi.mock('../media/webrtcSession', () => ({

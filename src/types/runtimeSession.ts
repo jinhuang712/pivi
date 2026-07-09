@@ -47,6 +47,13 @@ export type RoomBroadcastMessage =
         memberId: string;
         reason: 'kicked' | 'banned' | string;
       };
+    }
+  | {
+      type: 'HostChanged';
+      payload: {
+        previousHostId: string;
+        newHostId: string;
+      };
     };
 
 export interface WebRtcSignal {
