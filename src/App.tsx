@@ -153,6 +153,33 @@ function AppShell() {
     });
   };
 
+  const handleIncomingChat = (frame: string, senderId: string) => {
+    let parsed: ChatMessage;
+    try {
+      parsed = JSON.parse(frame) as ChatMessage;
+    } catch {
+      return;
+    }
+    if (!parsed || typeof parsed.content !== 'string' || !parsed.id) {
+      return;
+    }
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === parsed.id)) {
+        return prev;
+      }
+      return [...prev, { ...parsed, isSelf: false }];
+    });
+    // hub-and-spoke mesh: the host relays chat to every other peer so
+    // joiners (which have no direct channel between them) still receive it
+    if (!activeRemoteEndpointRef.current) {
+      peerSessionsRef.current.forEach((session, pid) => {
+        if (pid !== senderId) {
+          session.sendChat(frame);
+        }
+      });
+    }
+  };
+
   const ensurePeerSession = (peerId: string) => {
     const existing = peerSessionsRef.current.get(peerId);
     if (existing) {
@@ -167,6 +194,9 @@ function AppShell() {
       onRemoteStream: (stream) => {
         audioEngineRef.current?.bindRemoteStream(peerId, stream);
         appendRuntimeLog('info', 'audio', `已绑定远端音频流: ${peerId}`);
+      },
+      onChatMessage: (frame) => {
+        handleIncomingChat(frame, peerId);
       },
       sendSignal: async ({ target, signalType, payload }) => {
         await sendWebRtcSignal(target, signalType, payload);
@@ -522,6 +552,8 @@ function AppShell() {
                 isSelf: true,
               };
               setMessages((prev) => [...prev, newMessage]);
+              const frame = JSON.stringify(newMessage);
+              peerSessionsRef.current.forEach((session) => session.sendChat(frame));
             }}
           />
         </div>
