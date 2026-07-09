@@ -170,10 +170,13 @@ function AppShell() {
     });
   };
 
-  const handleIncomingChat = (frame: string, senderId: string) => {
+  const handleIncomingData = (data: string | ArrayBuffer, senderId: string) => {
+    if (typeof data !== 'string') {
+      return; // binary file chunks are handled by the file assembler (B4b)
+    }
     let parsed: ChatMessage;
     try {
-      parsed = JSON.parse(frame) as ChatMessage;
+      parsed = JSON.parse(data) as ChatMessage;
     } catch {
       return;
     }
@@ -191,7 +194,7 @@ function AppShell() {
     if (!activeRemoteEndpointRef.current) {
       peerSessionsRef.current.forEach((session, pid) => {
         if (pid !== senderId) {
-          session.sendChat(frame);
+          session.sendRaw(data);
         }
       });
     }
@@ -216,8 +219,8 @@ function AppShell() {
         setRemoteScreen(stream);
         appendRuntimeLog('info', 'screen', `收到远端屏幕共享: ${peerId}`);
       },
-      onChatMessage: (frame) => {
-        handleIncomingChat(frame, peerId);
+      onDataMessage: (data) => {
+        handleIncomingData(data, peerId);
       },
       sendSignal: async ({ target, signalType, payload }) => {
         await sendWebRtcSignal(target, signalType, payload);

@@ -143,13 +143,13 @@ describe('createWebRtcSession', () => {
     const pc = createFakePeerConnection();
     (pc as any).createDataChannel = vi.fn(() => chatChannel);
 
-    const onChatMessage = vi.fn();
+    const onDataMessage = vi.fn();
     const session = createWebRtcSession({
       selfId: 'host-1',
       peerId: 'user-2',
       roomId: 'room-a',
       createPeerConnection: () => pc,
-      onChatMessage,
+      onDataMessage,
       sendSignal: vi.fn(async () => {}),
     });
 
@@ -158,7 +158,7 @@ describe('createWebRtcSession', () => {
 
     // incoming frame from peer
     chatChannel.onmessage({ data: 'incoming-frame' });
-    expect(onChatMessage).toHaveBeenCalledWith('incoming-frame');
+    expect(onDataMessage).toHaveBeenCalledWith('incoming-frame');
 
     // outgoing frame
     expect(session.sendChat('outgoing-frame')).toBe(true);
@@ -216,5 +216,37 @@ describe('createWebRtcSession', () => {
 
     expect(onRemoteStream).toHaveBeenCalledWith(audioStream);
     expect(onRemoteScreen).toHaveBeenCalledWith(screenStream);
+  });
+
+  it('passes binary chunks through onDataMessage and sendRaw', async () => {
+    const chatChannel: any = {
+      readyState: 'open',
+      onopen: null,
+      onmessage: null,
+      send: vi.fn(),
+      close: vi.fn(),
+      label: 'pivi-chat',
+    };
+    const pc = createFakePeerConnection();
+    (pc as any).createDataChannel = vi.fn(() => chatChannel);
+
+    const onDataMessage = vi.fn();
+    const session = createWebRtcSession({
+      selfId: 'h',
+      peerId: 'u',
+      roomId: 'r',
+      createPeerConnection: () => pc,
+      onDataMessage,
+      sendSignal: vi.fn(async () => {}),
+    });
+
+    await session.startOffer();
+
+    const chunk = new ArrayBuffer(8);
+    chatChannel.onmessage({ data: chunk });
+    expect(onDataMessage).toHaveBeenCalledWith(chunk);
+
+    expect(session.sendRaw(chunk)).toBe(true);
+    expect(chatChannel.send).toHaveBeenCalledWith(chunk);
   });
 });

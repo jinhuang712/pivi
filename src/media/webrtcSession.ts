@@ -5,7 +5,9 @@ type DataChannelLike = {
   label: string;
   onopen: any;
   onmessage: any;
-  send: (data: string) => void;
+  // RTCDataChannel.send is overloaded (string | Blob | ArrayBuffer | ArrayBufferView),
+  // so the alias declares it loosely.
+  send: any;
   close: () => void;
 };
 
@@ -31,7 +33,7 @@ interface CreateWebRtcSessionOptions {
   localStream?: MediaStream;
   onRemoteStream?: (stream: MediaStream) => void;
   onRemoteScreen?: (stream: MediaStream) => void;
-  onChatMessage?: (frame: string) => void;
+  onDataMessage?: (data: string | ArrayBuffer) => void;
   sendSignal: (payload: {
     roomId: string;
     from: string;
@@ -55,7 +57,7 @@ export const createWebRtcSession = ({
   localStream,
   onRemoteStream,
   onRemoteScreen,
-  onChatMessage,
+  onDataMessage,
   sendSignal,
   onSignalApplied,
 }: CreateWebRtcSessionOptions) => {
@@ -80,9 +82,9 @@ export const createWebRtcSession = ({
   let chatChannel: DataChannelLike | null = null;
   const wireChatChannel = (channel: DataChannelLike) => {
     chatChannel = channel;
-    channel.onmessage = (event: { data?: string }) => {
-      if (event?.data) {
-        onChatMessage?.(event.data);
+    channel.onmessage = (event: { data?: string | ArrayBuffer }) => {
+      if (event?.data !== undefined && event?.data !== null) {
+        onDataMessage?.(event.data);
       }
     };
   };
@@ -165,13 +167,15 @@ export const createWebRtcSession = ({
     }
   };
 
-  const sendChat = (frame: string): boolean => {
+  const sendRaw = (data: string | ArrayBuffer): boolean => {
     if (chatChannel && chatChannel.readyState === 'open') {
-      chatChannel.send(frame);
+      chatChannel.send(data);
       return true;
     }
     return false;
   };
+
+  const sendChat = (frame: string): boolean => sendRaw(frame);
 
   const addTrack = async (track: MediaStreamTrack, stream: MediaStream) => {
     peerConnection.addTrack(track, stream);
@@ -190,6 +194,7 @@ export const createWebRtcSession = ({
     startOffer,
     handleSignal,
     sendChat,
+    sendRaw,
     addTrack,
     close,
   };
