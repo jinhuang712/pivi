@@ -20,7 +20,7 @@ import { useLocalAudio } from "./media/useLocalAudio";
 import { useHotkeys } from "./media/useHotkeys";
 import { useScreenShare } from "./media/useScreenShare";
 import type { ShareQualityPreset } from "./media/screenShare";
-import { IncomingFileAssembler, type FileMetaFrame } from "./media/fileTransfer";
+import { IncomingFileAssembler, canSendImage, splitIntoChunks, type FileMetaFrame } from "./media/fileTransfer";
 import { AudioControlEngine } from "./media/audioControl";
 import { loadHotkeys } from "./lib/hotkeySettings";
 import { appendRuntimeLog, buildRuntimeDiagnosticsText } from "./lib/runtimeLog";
@@ -524,6 +524,42 @@ function AppShell() {
     setAppState('channel');
   };
 
+  const handleSendImage = async (file: File) => {
+    if (!canSendImage(file.size)) {
+      return;
+    }
+    const buffer = await file.arrayBuffer();
+    const chunks = splitIntoChunks(buffer);
+    const fileId = `file-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const meta: FileMetaFrame = {
+      type: 'FILE_META',
+      fileId,
+      fileName: file.name,
+      mimeType: file.type,
+      fileSize: file.size,
+      totalChunks: chunks.length,
+    };
+    const metaFrame = JSON.stringify(meta);
+    peerSessionsRef.current.forEach((session) => {
+      session.sendRaw(metaFrame);
+      chunks.forEach((chunk) => session.sendRaw(chunk));
+    });
+
+    const url = URL.createObjectURL(new Blob([buffer], { type: file.type }));
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `img-${fileId}`,
+        sender: currentUserName,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        content: file.name,
+        isSelf: true,
+        imageUrl: url,
+        fileName: file.name,
+      },
+    ]);
+  };
+
   const handleStartShare = async (opts: { quality: string; includeSystemAudio: boolean }) => {
     const stream = await screenShare.start({
       quality: opts.quality as ShareQualityPreset,
@@ -640,6 +676,7 @@ function AppShell() {
             onStopShare={handleStopShare}
             localScreenStream={screenShare.stream}
             remoteScreenStream={remoteScreen}
+            onSendImage={handleSendImage}
             currentUserName={currentUserName}
             messages={messages}
             networkPath={networkPath}

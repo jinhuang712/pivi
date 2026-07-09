@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { RoomNetworkPath } from '../types/channel';
 import type { ChatMessage } from '../types/channel';
 import { T, useLang } from '../providers';
+import { MAX_IMAGE_BYTES } from '../media/fileTransfer';
 
 interface MainAreaProps {
   onOpenSettings?: () => void;
@@ -13,6 +14,7 @@ interface MainAreaProps {
   onStopShare?: () => void;
   localScreenStream?: MediaStream | null;
   remoteScreenStream?: MediaStream | null;
+  onSendImage?: (file: File) => void;
   currentUserName: string;
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
@@ -39,6 +41,7 @@ const MainArea: React.FC<MainAreaProps> = ({
   onStopShare,
   localScreenStream,
   remoteScreenStream,
+  onSendImage,
   currentUserName,
   messages,
   onSendMessage,
@@ -56,6 +59,7 @@ const MainArea: React.FC<MainAreaProps> = ({
   const [showError, setShowError] = useState(false);
   const pipVideoRef = useRef<HTMLVideoElement | null>(null);
   const viewerVideoRef = useRef<HTMLVideoElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const isMicMuted = isMicMutedProp ?? internalMicMuted;
   const isSharing = isScreenSharing ?? internalSharing;
@@ -88,6 +92,20 @@ const MainArea: React.FC<MainAreaProps> = ({
   const handleSimulateUploadError = () => {
     setShowError(true);
     setTimeout(() => setShowError(false), 3000);
+  };
+
+  const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) {
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+      return;
+    }
+    onSendImage?.(file);
   };
 
   const handleStartShare = () => {
@@ -183,12 +201,19 @@ const MainArea: React.FC<MainAreaProps> = ({
       <div className="composer">
         <div className="f">
           <button
-            onClick={handleSimulateUploadError}
+            onClick={() => (onSendImage ? fileInputRef.current?.click() : handleSimulateUploadError())}
             style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '16px', padding: '0 4px' }}
             title={lang === 'zh' ? '上传图片/文件' : 'Upload image / file'}
           >
             +
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFilePick}
+            style={{ display: 'none' }}
+          />
           <input
             type="text"
             value={inputValue}
