@@ -17,7 +17,9 @@ import { JoinRoomResolutionError, resolveJoinRoom } from "./lib/joinRoom";
 import { createControlSession } from "./lib/controlSession";
 import { createWebRtcSession } from "./media/webrtcSession";
 import { useLocalAudio } from "./media/useLocalAudio";
+import { useHotkeys } from "./media/useHotkeys";
 import { AudioControlEngine } from "./media/audioControl";
+import { loadHotkeys } from "./lib/hotkeySettings";
 import { appendRuntimeLog, buildRuntimeDiagnosticsText } from "./lib/runtimeLog";
 import {
   getHostRuntimeRoomEvents,
@@ -98,6 +100,16 @@ function AppShell() {
   if (!audioEngineRef.current) {
     audioEngineRef.current = new AudioControlEngine();
   }
+
+  const [hotkeys, setHotkeys] = useState(loadHotkeys);
+  useHotkeys({
+    ptt: hotkeys.ptt,
+    mute: hotkeys.mute,
+    active: appState === 'channel',
+    onPttDown: () => localAudio.setMuted(false),
+    onPttUp: () => localAudio.setMuted(true),
+    onMuteToggle: localAudio.toggleMute,
+  });
 
   const currentUserIsHost = members.find((m) => m.id === currentUserId)?.isHost ?? false;
   const controlSessionRef = useRef<ReturnType<typeof createControlSession> | null>(null);
@@ -573,6 +585,7 @@ function AppShell() {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        onHotkeysChange={() => setHotkeys(loadHotkeys())}
       />
     </div>
   );

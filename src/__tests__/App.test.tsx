@@ -173,6 +173,10 @@ vi.mock('../media/webrtcSession', () => ({
   })),
 }));
 
+vi.mock('../media/useHotkeys', () => ({
+  useHotkeys: () => {},
+}));
+
 describe('App Phase 7 invite flow', () => {
   beforeEach(() => {
     localStorage.clear();

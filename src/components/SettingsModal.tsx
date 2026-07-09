@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { T, useLang, useTheme } from '../providers';
+import { loadHotkeys, saveHotkeys } from '../lib/hotkeySettings';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onHotkeysChange?: () => void;
 }
 
 type Tab = 'account' | 'audio' | 'hotkey' | 'ban';
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onHotkeysChange }) => {
   const { lang, setLang } = useLang();
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<Tab>('account');
@@ -23,8 +25,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [micCaptureState, setMicCaptureState] = useState<'idle' | 'capturing' | 'error'>('idle');
   const [micError, setMicError] = useState('');
 
-  const [pttHotkey, setPttHotkey] = useState('V');
-  const [muteHotkey, setMuteHotkey] = useState('M');
+  const [hotkeys, setHotkeys] = useState(loadHotkeys);
   const [isRecordingHotkey, setIsRecordingHotkey] = useState<'ptt' | 'mute' | null>(null);
 
   const stopMicCapture = () => {
@@ -81,8 +82,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           return;
         }
         const keyName = e.key.toUpperCase();
-        if (isRecordingHotkey === 'ptt') setPttHotkey(keyName);
-        if (isRecordingHotkey === 'mute') setMuteHotkey(keyName);
+        if (isRecordingHotkey === 'ptt' || isRecordingHotkey === 'mute') {
+          const next = { ...hotkeys, [isRecordingHotkey]: keyName };
+          setHotkeys(next);
+          saveHotkeys(next);
+          onHotkeysChange?.();
+        }
         setIsRecordingHotkey(null);
         return;
       }
@@ -230,7 +235,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       onClick={() => setIsRecordingHotkey((cur) => (cur === 'ptt' ? null : 'ptt'))}
                       style={{ minWidth: 48, textAlign: 'center' }}
                     >
-                      {isRecordingHotkey === 'ptt' ? (lang === 'zh' ? '录制中…' : 'recording…') : pttHotkey}
+                      {isRecordingHotkey === 'ptt' ? (lang === 'zh' ? '录制中…' : 'recording…') : hotkeys.ptt}
                     </button>
                   </div>
                 </div>
@@ -246,7 +251,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       onClick={() => setIsRecordingHotkey((cur) => (cur === 'mute' ? null : 'mute'))}
                       style={{ minWidth: 48, textAlign: 'center' }}
                     >
-                      {isRecordingHotkey === 'mute' ? (lang === 'zh' ? '录制中…' : 'recording…') : muteHotkey}
+                      {isRecordingHotkey === 'mute' ? (lang === 'zh' ? '录制中…' : 'recording…') : hotkeys.mute}
                     </button>
                   </div>
                 </div>
