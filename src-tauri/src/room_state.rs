@@ -20,6 +20,9 @@ pub struct MemberState {
     pub role: MemberRole,
     pub join_at: SystemTime,
     pub conn_state: ConnectionState,
+    /// True when the host has server-muted this member (forces their mic off
+    /// for everyone). Survives snapshots so late joiners see the right state.
+    pub server_muted: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,6 +49,7 @@ impl RoomState {
             role: MemberRole::Host,
             join_at: created_at,
             conn_state: ConnectionState::Connected,
+            server_muted: false,
         };
         members.insert(host_id.to_string(), host);
         Self {
@@ -66,6 +70,7 @@ impl RoomState {
             role: MemberRole::Member,
             join_at: SystemTime::now(),
             conn_state: ConnectionState::Connected,
+            server_muted: false,
         };
         self.members.insert(member_id.to_string(), member);
         Ok(())
@@ -96,6 +101,18 @@ impl RoomState {
             return true;
         }
         false
+    }
+
+    /// Toggles a member's server-muted flag. Returns the previous value, or
+    /// `None` if the member does not exist. The host cannot be server-muted.
+    pub fn set_server_muted(&mut self, member_id: &str, server_muted: bool) -> Option<bool> {
+        let member = self.members.get_mut(member_id)?;
+        if member.role == MemberRole::Host {
+            return Some(false);
+        }
+        let previous = member.server_muted;
+        member.server_muted = server_muted;
+        Some(previous)
     }
 }
 
@@ -155,5 +172,35 @@ mod tests {
             .find(|m| m.member_id == "user-a")
             .unwrap();
         assert_eq!(member.conn_state, ConnectionState::Disconnected);
+    }
+
+    #[test]
+    fn set_server_muted_should_toggle_member_flag_and_return_previous() {
+        let mut room = RoomState::new("A9B2K8", "host-1", "HuangJin");
+        room.add_member("user-a", "Player A").unwrap();
+
+        let previous = room.set_server_muted("user-a", true).unwrap();
+        assert!(!previous, "previous should be false on first mute");
+
+        let member = room.members_snapshot().into_iter().find(|m| m.member_id == "user-a").unwrap();
+        assert!(member.server_muted);
+
+        let previous = room.set_server_muted("user-a", false).unwrap();
+        assert!(previous, "previous should reflect the muted state");
+    }
+
+    #[test]
+    fn set_server_muted_should_refuse_to_mute_the_host() {
+        let mut room = RoomState::new("A9B2K8", "host-1", "HuangJin");
+        let previous = room.set_server_muted("host-1", true);
+        assert_eq!(previous, Some(false));
+        let host = room.members_snapshot().into_iter().find(|m| m.member_id == "host-1").unwrap();
+        assert!(!host.server_muted);
+    }
+
+    #[test]
+    fn set_server_muted_should_return_none_for_unknown_member() {
+        let mut room = RoomState::new("A9B2K8", "host-1", "HuangJin");
+        assert!(room.set_server_muted("nobody", true).is_none());
     }
 }

@@ -9,6 +9,7 @@ pub struct MemberSnapshot {
     pub display_name: String,
     pub role: String,
     pub conn_state: String,
+    pub server_muted: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -17,6 +18,13 @@ pub enum RoomBroadcastMessage {
     RoomState { room_id: String, members: Vec<MemberSnapshot> },
     MemberJoined { member: MemberSnapshot },
     MemberLeft { member_id: String },
+    /// Broadcast when the host toggles a member's server-mute. Clients reflect
+    /// `serverMuted` on the member; the muted member also forces their mic off.
+    MemberServerMuted { member_id: String, server_muted: bool },
+    /// Targeted at the member who was removed, so their client can tell a kick
+    /// or ban apart from a voluntary leave. Other members learn about the
+    /// departure through the usual `MemberLeft` broadcast.
+    MemberRemoved { member_id: String, reason: String },
 }
 
 pub struct RoomBroadcastBuilder;
@@ -45,12 +53,27 @@ impl RoomBroadcastBuilder {
         }
     }
 
+    pub fn build_member_server_muted(member_id: &str, server_muted: bool) -> RoomBroadcastMessage {
+        RoomBroadcastMessage::MemberServerMuted {
+            member_id: member_id.to_string(),
+            server_muted,
+        }
+    }
+
+    pub fn build_member_removed(member_id: &str, reason: &str) -> RoomBroadcastMessage {
+        RoomBroadcastMessage::MemberRemoved {
+            member_id: member_id.to_string(),
+            reason: reason.to_string(),
+        }
+    }
+
     fn to_member_snapshot(member: MemberState) -> MemberSnapshot {
         MemberSnapshot {
             member_id: member.member_id,
             display_name: member.display_name,
             role: Self::role_to_string(&member.role),
             conn_state: Self::conn_state_to_string(&member.conn_state),
+            server_muted: member.server_muted,
         }
     }
 
@@ -95,6 +118,7 @@ mod tests {
             role: MemberRole::Member,
             join_at: std::time::SystemTime::now(),
             conn_state: ConnectionState::Connected,
+            server_muted: false,
         };
 
         let message = RoomBroadcastBuilder::build_member_joined(&member);
@@ -102,6 +126,7 @@ mod tests {
             assert_eq!(member.member_id, "user-a");
             assert_eq!(member.role, "Member");
             assert_eq!(member.conn_state, "Connected");
+            assert!(!member.server_muted);
         } else {
             panic!("expected MemberJoined message");
         }
@@ -116,5 +141,40 @@ mod tests {
                 member_id: "user-a".to_string()
             }
         );
+    }
+
+    #[test]
+    fn build_member_server_muted_should_carry_flag() {
+        assert_eq!(
+            RoomBroadcastBuilder::build_member_server_muted("user-a", true),
+            RoomBroadcastMessage::MemberServerMuted {
+                member_id: "user-a".to_string(),
+                server_muted: true,
+            }
+        );
+    }
+
+    #[test]
+    fn build_member_removed_should_carry_reason() {
+        assert_eq!(
+            RoomBroadcastBuilder::build_member_removed("user-a", "kicked"),
+            RoomBroadcastMessage::MemberRemoved {
+                member_id: "user-a".to_string(),
+                reason: "kicked".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn server_muted_and_reason_should_serialize_as_camel_case() {
+        let muted = serde_json::to_value(RoomBroadcastBuilder::build_member_server_muted("u", true)).unwrap();
+        assert_eq!(muted["type"], "MemberServerMuted");
+        assert!(muted["payload"].get("memberId").is_some(), "memberId: {muted}");
+        assert!(muted["payload"].get("serverMuted").is_some(), "serverMuted: {muted}");
+
+        let removed = serde_json::to_value(RoomBroadcastBuilder::build_member_removed("u", "banned")).unwrap();
+        assert_eq!(removed["type"], "MemberRemoved");
+        assert!(removed["payload"].get("memberId").is_some(), "memberId: {removed}");
+        assert_eq!(removed["payload"]["reason"], "banned");
     }
 }

@@ -349,6 +349,40 @@ fn get_host_runtime_ready(
     state.get_runtime_ready(&room_id)
 }
 
+#[tauri::command]
+fn server_mute_host_runtime_member(
+    state: tauri::State<'_, HostRuntimeSessionManager>,
+    room_id: String,
+    member_id: String,
+    server_muted: bool,
+) -> Result<host_runtime_session::RoomRuntimeEvent, String> {
+    state
+        .server_mute_member(&room_id, &member_id, server_muted)
+        .map_err(|err| format!("{err:?}"))
+}
+
+#[tauri::command]
+fn kick_host_runtime_member(
+    state: tauri::State<'_, HostRuntimeSessionManager>,
+    room_id: String,
+    member_id: String,
+) -> Result<host_runtime_session::RoomRuntimeEvent, String> {
+    state
+        .kick_member(&room_id, &member_id)
+        .map_err(|err| format!("{err:?}"))
+}
+
+#[tauri::command]
+fn ban_host_runtime_member(
+    state: tauri::State<'_, HostRuntimeSessionManager>,
+    room_id: String,
+    member_id: String,
+) -> Result<host_runtime_session::RoomRuntimeEvent, String> {
+    state
+        .ban_member(&room_id, &member_id)
+        .map_err(|err| format!("{err:?}"))
+}
+
 fn parse_endpoint_scope(value: &str) -> Result<InviteEndpointScope, String> {
     match value {
         "private-lan-ipv4" => Ok(InviteEndpointScope::PrivateLanIpv4),
@@ -440,7 +474,10 @@ pub fn run() {
             get_remote_host_runtime_room_events,
             relay_host_runtime_signal,
             relay_remote_runtime_signal,
-            get_host_runtime_ready
+            get_host_runtime_ready,
+            server_mute_host_runtime_member,
+            kick_host_runtime_member,
+            ban_host_runtime_member
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::Ipv4Addr;
 use std::sync::{Arc, Mutex};
 
@@ -51,6 +51,8 @@ pub enum HostRuntimeSessionError {
     JoinRejected,
     InvalidListenHost,
     SignalRejected,
+    Banned,
+    MemberNotFound,
 }
 
 struct ActiveHostRuntimeSession {
@@ -62,6 +64,9 @@ struct ActiveHostRuntimeSession {
     lan_ipv4: Ipv4Addr,
     next_sequence: u64,
     events: Vec<RoomRuntimeEvent>,
+    /// Member IDs the host has banned. Any future join with one of these IDs is
+    /// rejected before the room state is touched.
+    banned_members: HashSet<String>,
 }
 
 #[derive(Clone, Default)]
@@ -111,6 +116,7 @@ impl HostRuntimeSessionManager {
                 lan_ipv4,
                 next_sequence: 2,
                 events,
+                banned_members: HashSet::new(),
             },
         );
 
@@ -136,6 +142,10 @@ impl HostRuntimeSessionManager {
         let session = sessions
             .get_mut(room_id)
             .ok_or(HostRuntimeSessionError::RoomNotFound)?;
+
+        if session.banned_members.contains(user_id) {
+            return Err(HostRuntimeSessionError::Banned);
+        }
 
         session
             .auth_gate
@@ -264,6 +274,107 @@ impl HostRuntimeSessionManager {
             sequence: session.next_sequence,
             target_member_id: Some(signal.target.clone()),
             message: ControlRuntimeMessage::WebRtcSignal(signal),
+        };
+        session.next_sequence += 1;
+        session.events.push(event.clone());
+        Ok(event)
+    }
+
+    /// Host toggles a member's server-mute. Emits a broadcast `MemberServerMuted`
+    /// event so every client reflects the flag; the muted member also mutes
+    /// their own mic locally.
+    pub fn server_mute_member(
+        &self,
+        room_id: &str,
+        member_id: &str,
+        server_muted: bool,
+    ) -> Result<RoomRuntimeEvent, HostRuntimeSessionError> {
+        let mut sessions = self.sessions.lock().unwrap();
+        let session = sessions
+            .get_mut(room_id)
+            .ok_or(HostRuntimeSessionError::RoomNotFound)?;
+        if session
+            .room
+            .set_server_muted(member_id, server_muted)
+            .is_none()
+        {
+            return Err(HostRuntimeSessionError::MemberNotFound);
+        }
+        let event = RoomRuntimeEvent {
+            sequence: session.next_sequence,
+            target_member_id: None,
+            message: ControlRuntimeMessage::RoomBroadcast(
+                RoomBroadcastBuilder::build_member_server_muted(member_id, server_muted),
+            ),
+        };
+        session.next_sequence += 1;
+        session.events.push(event.clone());
+        Ok(event)
+    }
+
+    /// Removes a member from the room and notifies them (reason "kicked").
+    /// Everyone else learns about the departure via the `MemberLeft` broadcast.
+    pub fn kick_member(
+        &self,
+        room_id: &str,
+        member_id: &str,
+    ) -> Result<RoomRuntimeEvent, HostRuntimeSessionError> {
+        self.remove_member(room_id, member_id, "kicked", false)
+    }
+
+    /// Same as `kick_member`, but also records the member ID so any future join
+    /// is rejected (`HostRuntimeSessionError::Banned`).
+    pub fn ban_member(
+        &self,
+        room_id: &str,
+        member_id: &str,
+    ) -> Result<RoomRuntimeEvent, HostRuntimeSessionError> {
+        self.remove_member(room_id, member_id, "banned", true)
+    }
+
+    fn remove_member(
+        &self,
+        room_id: &str,
+        member_id: &str,
+        reason: &str,
+        ban: bool,
+    ) -> Result<RoomRuntimeEvent, HostRuntimeSessionError> {
+        let mut sessions = self.sessions.lock().unwrap();
+        let session = sessions
+            .get_mut(room_id)
+            .ok_or(HostRuntimeSessionError::RoomNotFound)?;
+        if !session.room.has_member(member_id) {
+            return Err(HostRuntimeSessionError::MemberNotFound);
+        }
+        let removed = session
+            .room
+            .remove_member(member_id)
+            .map_err(|_| HostRuntimeSessionError::MemberNotFound)?;
+        if !removed {
+            return Err(HostRuntimeSessionError::MemberNotFound);
+        }
+        if ban {
+            session.banned_members.insert(member_id.to_string());
+        }
+
+        // Targeted notice so the removed member's client can show why.
+        session.events.push(RoomRuntimeEvent {
+            sequence: session.next_sequence,
+            target_member_id: Some(member_id.to_string()),
+            message: ControlRuntimeMessage::RoomBroadcast(RoomBroadcastBuilder::build_member_removed(
+                member_id,
+                reason,
+            )),
+        });
+        session.next_sequence += 1;
+
+        // Broadcast the departure to everyone still in the room.
+        let event = RoomRuntimeEvent {
+            sequence: session.next_sequence,
+            target_member_id: None,
+            message: ControlRuntimeMessage::RoomBroadcast(RoomBroadcastBuilder::build_member_left(
+                member_id,
+            )),
         };
         session.next_sequence += 1;
         session.events.push(event.clone());
@@ -464,6 +575,123 @@ mod tests {
         assert_eq!(user_events.len(), 1);
         assert_eq!(host_events.len(), 0);
     }
+
+    fn two_member_session() -> HostRuntimeSessionManager {
+        let manager = HostRuntimeSessionManager::default();
+        let invite_code = build_invite_code(7788);
+        manager
+            .start_host_session(
+                "room-a",
+                "host-1",
+                "HuangJin",
+                &invite_code,
+                0,
+                "192.168.31.10",
+                7788,
+                Ipv4Addr::new(192, 168, 31, 10),
+            )
+            .unwrap();
+        manager
+            .join_host_session("room-a", &invite_code, 0, "user-2", "Player B")
+            .unwrap();
+        manager
+    }
+
+    #[test]
+    fn server_mute_member_should_broadcast_and_reflect_in_state() {
+        let manager = two_member_session();
+
+        let event = manager.server_mute_member("room-a", "user-2", true).unwrap();
+        assert!(event.target_member_id.is_none(), "server-mute is a broadcast");
+
+        let state = manager.get_room_state("room-a").unwrap();
+        if let RoomBroadcastMessage::RoomState { members, .. } = state {
+            let member = members.iter().find(|m| m.member_id == "user-2").unwrap();
+            assert!(member.server_muted, "member should be server-muted");
+        } else {
+            panic!("expected room state");
+        }
+    }
+
+    #[test]
+    fn kick_member_should_notify_target_and_broadcast_left() {
+        let manager = two_member_session();
+
+        manager.kick_member("room-a", "user-2").unwrap();
+
+        // The kicked member receives a targeted MemberRemoved notice.
+        let user_events = manager
+            .get_events_since_for_member("room-a", Some("user-2"), 0)
+            .unwrap();
+        assert!(
+            user_events.iter().any(|event| matches!(
+                &event.message,
+                ControlRuntimeMessage::RoomBroadcast(RoomBroadcastMessage::MemberRemoved {
+                    member_id,
+                    reason
+                }) if member_id == "user-2" && reason == "kicked"
+            )),
+            "kicked member should see a MemberRemoved notice"
+        );
+
+        // Everyone else sees the departure via the broadcast MemberLeft.
+        let host_events = manager
+            .get_events_since_for_member("room-a", Some("host-1"), 0)
+            .unwrap();
+        assert!(
+            host_events.iter().any(|event| matches!(
+                &event.message,
+                ControlRuntimeMessage::RoomBroadcast(RoomBroadcastMessage::MemberLeft {
+                    member_id
+                }) if member_id == "user-2"
+            )),
+            "host should see a MemberLeft broadcast"
+        );
+        assert!(
+            !host_events.iter().any(|event| matches!(
+                &event.message,
+                ControlRuntimeMessage::RoomBroadcast(RoomBroadcastMessage::MemberRemoved { .. })
+            )),
+            "host should NOT see the targeted MemberRemoved notice"
+        );
+
+        let state = manager.get_room_state("room-a").unwrap();
+        if let RoomBroadcastMessage::RoomState { members, .. } = state {
+            assert!(members.iter().all(|m| m.member_id != "user-2"));
+        } else {
+            panic!("expected room state");
+        }
+    }
+
+    #[test]
+    fn ban_member_should_prevent_rejoin() {
+        let manager = two_member_session();
+
+        manager.ban_member("room-a", "user-2").unwrap();
+
+        let result = manager.join_host_session(
+            "room-a",
+            &build_invite_code(7788),
+            0,
+            "user-2",
+            "Player B",
+        );
+        assert_eq!(result, Err(HostRuntimeSessionError::Banned));
+    }
+
+    #[test]
+    fn remove_unknown_member_should_error() {
+        let manager = two_member_session();
+
+        assert_eq!(
+            manager.kick_member("room-a", "nobody"),
+            Err(HostRuntimeSessionError::MemberNotFound)
+        );
+        assert_eq!(
+            manager.server_mute_member("room-a", "nobody", true),
+            Err(HostRuntimeSessionError::MemberNotFound)
+        );
+    }
 }
 
 #[cfg(test)]
@@ -501,6 +729,7 @@ mod contract_tests {
                 display_name: "U".into(),
                 role: "Member".into(),
                 conn_state: "Connected".into(),
+                server_muted: false,
             },
             room_state: RoomBroadcastBuilder::build_room_state(&room),
             latest_sequence: 9,
