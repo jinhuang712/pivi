@@ -26,13 +26,16 @@ import { AudioControlEngine } from "./media/audioControl";
 import { loadHotkeys } from "./lib/hotkeySettings";
 import { appendRuntimeLog, buildRuntimeDiagnosticsText } from "./lib/runtimeLog";
 import {
+  banHostRuntimeMember,
   getHostRuntimeRoomEvents,
   getHostRuntimeRoomState,
   getRemoteHostRuntimeRoomEvents,
   getRemoteHostRuntimeRoomState,
   joinRemoteHostRuntimeSession,
+  kickHostRuntimeMember,
   relayHostRuntimeSignal,
   relayRemoteRuntimeSignal,
+  serverMuteHostRuntimeMember,
   startHostRuntimeSession,
 } from "./lib/runtimeSession";
 import type { JoinPreview, RoomMember, ChatMessage, RoomNetworkPath } from "./types/channel";
@@ -55,7 +58,7 @@ const toRoomMember = (member: MemberSnapshot): RoomMember => ({
   isHost: member.role === 'Host',
   isSpeaking: false,
   localMuted: false,
-  serverMuted: false,
+  serverMuted: member.serverMuted,
   volume: 100,
 });
 
@@ -345,6 +348,28 @@ function AppShell() {
 
     if (broadcast.type === 'MemberLeft') {
       setMembers((prev) => prev.filter((member) => member.id !== broadcast.payload.memberId));
+      return;
+    }
+
+    if (broadcast.type === 'MemberServerMuted') {
+      const { memberId, serverMuted } = broadcast.payload;
+      setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, serverMuted } : m)));
+      // When the host server-mutes me, force my own mic off.
+      if (memberId === currentUserId && serverMuted) {
+        localAudio.setMuted(true);
+      }
+      return;
+    }
+
+    if (broadcast.type === 'MemberRemoved') {
+      const { memberId, reason } = broadcast.payload;
+      // This event is targeted at the removed member only.
+      if (memberId === currentUserId) {
+        appendRuntimeLog('warn', 'host-manage', `被移出房间: ${reason}`);
+        window.alert(reason === 'banned' ? '你已被房主拉黑。' : '你已被房主移出房间。');
+        handleLeave();
+      }
+      return;
     }
   };
 
@@ -611,6 +636,47 @@ function AppShell() {
     screenShare.stop();
   };
 
+  // --- Host management (server-mute / kick / ban) -----------------------------
+  // These are host-only; the host runs the runtime in-process, so they call the
+  // local *HostRuntime* commands (no remote relay). The emitted broadcasts reach
+  // every member — including joiners via the remote poll path — and the host's
+  // own subscriber loop updates its members list too.
+  const handleServerMute = async (memberId: string) => {
+    const roomId = activeRoomIdRef.current;
+    if (!roomId) return;
+    const target = membersRef.current.find((m) => m.id === memberId);
+    if (!target) return;
+    try {
+      await serverMuteHostRuntimeMember({
+        roomId,
+        memberId,
+        serverMuted: !target.serverMuted,
+      });
+    } catch (error) {
+      appendRuntimeLog('warn', 'host-manage', error instanceof Error ? error.message : '闭麦失败');
+    }
+  };
+
+  const handleKick = async (memberId: string) => {
+    const roomId = activeRoomIdRef.current;
+    if (!roomId) return;
+    try {
+      await kickHostRuntimeMember({ roomId, memberId });
+    } catch (error) {
+      appendRuntimeLog('warn', 'host-manage', error instanceof Error ? error.message : '踢出失败');
+    }
+  };
+
+  const handleBan = async (memberId: string) => {
+    const roomId = activeRoomIdRef.current;
+    if (!roomId) return;
+    try {
+      await banHostRuntimeMember({ roomId, memberId });
+    } catch (error) {
+      appendRuntimeLog('warn', 'host-manage', error instanceof Error ? error.message : '拉黑失败');
+    }
+  };
+
   const handleLeave = () => {
     screenShare.stop();
     setRemoteScreen(null);
@@ -700,6 +766,9 @@ function AppShell() {
             onVolumeChange={(id: string, volume: number) => {
               setMembers((prev) => prev.map((member) => (member.id === id ? { ...member, volume } : member)));
             }}
+            onServerMute={handleServerMute}
+            onKick={handleKick}
+            onBan={handleBan}
           />
           <MainArea
             onOpenSettings={() => setIsSettingsOpen(true)}

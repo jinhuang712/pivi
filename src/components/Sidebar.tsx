@@ -12,6 +12,9 @@ interface SidebarProps {
   onRegenerateInviteCode?: () => void;
   onLocalMuteToggle?: (id: string) => void;
   onVolumeChange?: (id: string, volume: number) => void;
+  onServerMute?: (id: string) => void;
+  onKick?: (id: string) => void;
+  onBan?: (id: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -23,6 +26,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   isCurrentUserHost,
   onLocalMuteToggle,
   onVolumeChange,
+  onServerMute,
+  onKick,
+  onBan,
 }) => {
   const [copied, setCopied] = useState(false);
   const { lang } = useLang();
@@ -76,6 +82,9 @@ const Sidebar: React.FC<SidebarProps> = ({
             isCurrentUser={member.id === currentUserId}
             onLocalMuteToggle={onLocalMuteToggle}
             onVolumeChange={onVolumeChange}
+            onServerMute={onServerMute}
+            onKick={onKick}
+            onBan={onBan}
           />
         ))}
       </div>

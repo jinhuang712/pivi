@@ -3,6 +3,7 @@ export interface MemberSnapshot {
   displayName: string;
   role: string;
   connState: string;
+  serverMuted: boolean;
 }
 
 export interface RoomRuntimeEvent {
@@ -31,6 +32,20 @@ export type RoomBroadcastMessage =
       type: 'MemberLeft';
       payload: {
         memberId: string;
+      };
+    }
+  | {
+      type: 'MemberServerMuted';
+      payload: {
+        memberId: string;
+        serverMuted: boolean;
+      };
+    }
+  | {
+      type: 'MemberRemoved';
+      payload: {
+        memberId: string;
+        reason: 'kicked' | 'banned' | string;
       };
     };
 

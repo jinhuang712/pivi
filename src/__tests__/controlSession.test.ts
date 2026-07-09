@@ -24,6 +24,7 @@ describe('createControlSession', () => {
                   displayName: 'Player B',
                   role: 'Member',
                   connState: 'Connected',
+                  serverMuted: false,
                 },
               },
             },

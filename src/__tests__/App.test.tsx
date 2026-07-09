@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
+import type { RoomRuntimeEvent } from '../types/runtimeSession';
 
 const inviteCodeMocks = vi.hoisted(() => ({
   getPreferredLocalIpv4: vi.fn(async () => '192.168.31.10'),
@@ -79,8 +80,8 @@ const runtimeSessionMocks = vi.hoisted(() => ({
       ],
     },
   })),
-  getHostRuntimeRoomEvents: vi.fn(async () => []),
-  getRemoteHostRuntimeRoomEvents: vi.fn(async () => []),
+  getHostRuntimeRoomEvents: vi.fn(async (): Promise<RoomRuntimeEvent[]> => []),
+  getRemoteHostRuntimeRoomEvents: vi.fn(async (): Promise<RoomRuntimeEvent[]> => []),
   relayHostRuntimeSignal: vi.fn(async () => ({
     sequence: 4,
     targetMemberId: 'uuid-joiner',
@@ -137,6 +138,24 @@ const runtimeSessionMocks = vi.hoisted(() => ({
     },
     latestSequence: 3,
   })),
+  serverMuteHostRuntimeMember: vi.fn(async () => ({
+    sequence: 10,
+    targetMemberId: null,
+    message: {
+      type: 'RoomBroadcast',
+      payload: { type: 'MemberServerMuted', payload: { memberId: 'uuid-guest', serverMuted: true } },
+    },
+  })),
+  kickHostRuntimeMember: vi.fn(async () => ({
+    sequence: 11,
+    targetMemberId: null,
+    message: { type: 'RoomBroadcast', payload: { type: 'MemberLeft', payload: { memberId: 'uuid-guest' } } },
+  })),
+  banHostRuntimeMember: vi.fn(async () => ({
+    sequence: 12,
+    targetMemberId: null,
+    message: { type: 'RoomBroadcast', payload: { type: 'MemberLeft', payload: { memberId: 'uuid-guest' } } },
+  })),
 }));
 
 vi.mock('../lib/inviteCode', async (importOriginal) => {
@@ -162,6 +181,9 @@ vi.mock('../lib/runtimeSession', () => ({
   relayHostRuntimeSignal: runtimeSessionMocks.relayHostRuntimeSignal,
   relayRemoteRuntimeSignal: runtimeSessionMocks.relayRemoteRuntimeSignal,
   joinRemoteHostRuntimeSession: runtimeSessionMocks.joinRemoteHostRuntimeSession,
+  serverMuteHostRuntimeMember: runtimeSessionMocks.serverMuteHostRuntimeMember,
+  kickHostRuntimeMember: runtimeSessionMocks.kickHostRuntimeMember,
+  banHostRuntimeMember: runtimeSessionMocks.banHostRuntimeMember,
 }));
 
 vi.mock('../media/webrtcSession', () => ({
@@ -473,5 +495,51 @@ describe('App Phase 7 invite flow', () => {
       expect(screen.getByText((content) => content.includes('Remote Host 的房间'))).toBeInTheDocument();
       expect(screen.getByText('加入这个房间？')).toBeInTheDocument();
     });
+  });
+
+  it('reflects a server-mute broadcast on the affected member', async () => {
+    let emitted = false;
+    runtimeSessionMocks.getHostRuntimeRoomEvents.mockImplementation(async () => {
+      if (emitted) return [];
+      emitted = true;
+      return [
+        {
+          sequence: 2,
+          message: {
+            type: 'RoomBroadcast',
+            payload: {
+              type: 'MemberJoined',
+              payload: {
+                member: {
+                  memberId: 'uuid-guest',
+                  displayName: 'Guest User',
+                  role: 'Member',
+                  connState: 'connected',
+                  serverMuted: false,
+                },
+              },
+            },
+          },
+        },
+        {
+          sequence: 3,
+          message: {
+            type: 'RoomBroadcast',
+            payload: {
+              type: 'MemberServerMuted',
+              payload: { memberId: 'uuid-guest', serverMuted: true },
+            },
+          },
+        },
+      ];
+    });
+
+    render(<App />);
+    fireEvent.click(screen.getByText('创建新房间'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Guest User')).toBeInTheDocument();
+    });
+    expect(screen.getByText('被闭麦')).toBeInTheDocument();
   });
 });

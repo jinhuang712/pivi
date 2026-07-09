@@ -94,3 +94,18 @@ export const relayRemoteRuntimeSignal = (payload: {
 
 export const getHostRuntimeReady = (roomId: string) =>
   invoke<HostRuntimeReady | null>('get_host_runtime_ready', { roomId });
+
+/** Host-only: toggle a member's server-mute. Forces their mic off for everyone. */
+export const serverMuteHostRuntimeMember = (payload: {
+  roomId: string;
+  memberId: string;
+  serverMuted: boolean;
+}) => invoke<SignalRelayAccepted>('server_mute_host_runtime_member', payload);
+
+/** Host-only: remove a member from the room. The member is notified they were kicked. */
+export const kickHostRuntimeMember = (payload: { roomId: string; memberId: string }) =>
+  invoke<SignalRelayAccepted>('kick_host_runtime_member', payload);
+
+/** Host-only: remove a member and reject any future rejoin from them. */
+export const banHostRuntimeMember = (payload: { roomId: string; memberId: string }) =>
+  invoke<SignalRelayAccepted>('ban_host_runtime_member', payload);
