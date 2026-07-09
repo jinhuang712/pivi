@@ -108,4 +108,20 @@ describe('MainArea Component', () => {
     renderMainArea();
     expect(screen.queryByTestId('remote-screen')).not.toBeInTheDocument();
   });
+
+  it('renders image messages as an <img>', () => {
+    render(
+      <MainArea
+        onOpenSettings={vi.fn()}
+        currentUserName="HuangJin"
+        messages={[
+          { id: '1', sender: 'Mira', time: '14:00', content: 'look', isSelf: false, imageUrl: 'blob:x', fileName: 'pic.png' },
+        ]}
+        onSendMessage={vi.fn()}
+      />,
+    );
+    const img = screen.getByTestId('chat-image');
+    expect(img).toHaveAttribute('src', 'blob:x');
+    expect(img).toHaveAttribute('alt', 'pic.png');
+  });
 });

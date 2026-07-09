@@ -6,6 +6,8 @@ export interface ChatMessage {
   time: string;
   content: string;
   isSelf: boolean;
+  imageUrl?: string;
+  fileName?: string;
 }
 
 export interface RoomSnapshot {

@@ -162,7 +162,20 @@ const MainArea: React.FC<MainAreaProps> = ({
               <span className="ts">{msg.time}</span>
               <span className={`sn ${msg.isSelf ? 'me' : ''}`}>{msg.isSelf ? currentUserName : msg.sender}</span>
             </div>
-            <div className="bd">{msg.content}</div>
+            <div className="bd">
+              {msg.imageUrl ? (
+                <a href={msg.imageUrl} download={msg.fileName} target="_blank" rel="noreferrer">
+                  <img
+                    data-testid="chat-image"
+                    src={msg.imageUrl}
+                    alt={msg.fileName ?? 'image'}
+                    style={{ maxWidth: 220, maxHeight: 220, borderRadius: 4, display: 'block' }}
+                  />
+                </a>
+              ) : (
+                msg.content
+              )}
+            </div>
           </div>
         ))}
       </div>

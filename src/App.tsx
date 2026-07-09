@@ -20,6 +20,7 @@ import { useLocalAudio } from "./media/useLocalAudio";
 import { useHotkeys } from "./media/useHotkeys";
 import { useScreenShare } from "./media/useScreenShare";
 import type { ShareQualityPreset } from "./media/screenShare";
+import { IncomingFileAssembler, type FileMetaFrame } from "./media/fileTransfer";
 import { AudioControlEngine } from "./media/audioControl";
 import { loadHotkeys } from "./lib/hotkeySettings";
 import { appendRuntimeLog, buildRuntimeDiagnosticsText } from "./lib/runtimeLog";
@@ -121,6 +122,11 @@ function AppShell() {
   const peerSessionsRef = useRef(new Map<string, ReturnType<typeof createWebRtcSession>>());
   const activeRoomIdRef = useRef('');
   const activeRemoteEndpointRef = useRef<{ host: string; port: number } | null>(null);
+  const fileEntriesRef = useRef(
+    new Map<string, { assembler: IncomingFileAssembler; currentFileId: string | null; meta: FileMetaFrame | null }>(),
+  );
+  const membersRef = useRef<RoomMember[]>([]);
+  membersRef.current = members;
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
@@ -170,32 +176,76 @@ function AppShell() {
     });
   };
 
+  const appendImageMessage = (senderId: string, imageUrl: string, fileName: string) => {
+    const senderName = membersRef.current.find((m) => m.id === senderId)?.name ?? senderId;
+    const imageMessage: ChatMessage = {
+      id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      sender: senderName,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      content: fileName,
+      isSelf: false,
+      imageUrl,
+      fileName,
+    };
+    setMessages((prev) => [...prev, imageMessage]);
+  };
+
   const handleIncomingData = (data: string | ArrayBuffer, senderId: string) => {
-    if (typeof data !== 'string') {
-      return; // binary file chunks are handled by the file assembler (B4b)
-    }
-    let parsed: ChatMessage;
-    try {
-      parsed = JSON.parse(data) as ChatMessage;
-    } catch {
-      return;
-    }
-    if (!parsed || typeof parsed.content !== 'string' || !parsed.id) {
-      return;
-    }
-    setMessages((prev) => {
-      if (prev.some((m) => m.id === parsed.id)) {
-        return prev;
-      }
-      return [...prev, { ...parsed, isSelf: false }];
-    });
-    // hub-and-spoke mesh: the host relays chat to every other peer so
-    // joiners (which have no direct channel between them) still receive it
+    // hub-and-spoke mesh: the host relays everything (chat, FILE_META, binary
+    // chunks) to every other peer so joiners with no direct channel still
+    // receive shared images.
     if (!activeRemoteEndpointRef.current) {
       peerSessionsRef.current.forEach((session, pid) => {
         if (pid !== senderId) {
           session.sendRaw(data);
         }
+      });
+    }
+
+    if (typeof data !== 'string') {
+      // binary chunk -> assemble into the current incoming file
+      const entry = fileEntriesRef.current.get(senderId);
+      if (entry?.currentFileId) {
+        const result = entry.assembler.pushChunk(entry.currentFileId, data);
+        if (result.done && result.blob) {
+          const url = URL.createObjectURL(result.blob);
+          const fileName = entry.meta?.fileName ?? 'image';
+          entry.currentFileId = null;
+          entry.meta = null;
+          appendImageMessage(senderId, url, fileName);
+        }
+      }
+      return;
+    }
+
+    let parsed: { type?: string; id?: string; content?: string };
+    try {
+      parsed = JSON.parse(data);
+    } catch {
+      return;
+    }
+
+    if (parsed.type === 'FILE_META') {
+      const meta = parsed as unknown as FileMetaFrame;
+      const entry = fileEntriesRef.current.get(senderId) ?? {
+        assembler: new IncomingFileAssembler(),
+        currentFileId: null as string | null,
+        meta: null as FileMetaFrame | null,
+      };
+      entry.assembler.registerMeta(meta);
+      entry.currentFileId = meta.fileId;
+      entry.meta = meta;
+      fileEntriesRef.current.set(senderId, entry);
+      return;
+    }
+
+    if (parsed.id && typeof parsed.content === 'string') {
+      const message = parsed as unknown as ChatMessage;
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === message.id)) {
+          return prev;
+        }
+        return [...prev, { ...message, isSelf: false }];
       });
     }
   };
