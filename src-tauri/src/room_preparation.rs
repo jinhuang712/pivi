@@ -1,4 +1,5 @@
 use std::net::Ipv4Addr;
+use std::net::TcpListener;
 use std::sync::Mutex;
 
 use crate::invite_code::{encode_invite_code, format_invite_code, InviteCodePayload, InviteEndpointScope, InviteJoinMode};
@@ -6,6 +7,7 @@ use crate::nat_mapping::{NatMappingLease, NatMappingManager, NatMappingProtocol,
 use crate::ws_server::WebSocketServer;
 
 const DEFAULT_PORT_POOL: [u16; 4] = [7788, 7789, 7790, 7791];
+const LISTEN_HOST: &str = "0.0.0.0";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PreparedRoomInvite {
@@ -71,7 +73,7 @@ impl RoomPreparationState {
 
     fn bind_server(&self, last_successful_port: Option<u16>) -> (WebSocketServer, bool) {
         if let Some(port) = last_successful_port {
-            if let Ok(server) = WebSocketServer::bind("127.0.0.1", port) {
+            if let Ok(server) = WebSocketServer::bind(LISTEN_HOST, port) {
                 return (server, true);
             }
         }
@@ -81,15 +83,23 @@ impl RoomPreparationState {
                 continue;
             }
 
-            if let Ok(server) = WebSocketServer::bind("127.0.0.1", candidate) {
+            if let Ok(server) = WebSocketServer::bind(LISTEN_HOST, candidate) {
                 return (server, false);
             }
         }
 
         (
-            WebSocketServer::bind("127.0.0.1", 0).expect("failed to bind fallback ephemeral port"),
+            WebSocketServer::bind(LISTEN_HOST, 0).expect("failed to bind fallback ephemeral port"),
             false,
         )
+    }
+
+    pub fn active_listener_clone(&self) -> Option<TcpListener> {
+        self.active_server
+            .lock()
+            .unwrap()
+            .as_ref()
+            .and_then(|server| server.try_clone_listener().ok())
     }
 }
 
@@ -130,7 +140,7 @@ mod tests {
 
     fn build_available_pool() -> Vec<u16> {
         (0..4)
-            .map(|_| WebSocketServer::bind("127.0.0.1", 0).unwrap().local_addr().port())
+            .map(|_| WebSocketServer::bind(LISTEN_HOST, 0).unwrap().local_addr().port())
             .collect()
     }
 
@@ -155,7 +165,7 @@ mod tests {
     #[tokio::test]
     async fn should_fallback_to_port_pool_when_last_successful_port_is_busy() {
         let pool = build_available_pool();
-        let _occupied = WebSocketServer::bind("127.0.0.1", pool[1]).unwrap();
+        let _occupied = WebSocketServer::bind(LISTEN_HOST, pool[1]).unwrap();
         let state = RoomPreparationState::new(pool.clone());
         {
             let mut last = state.last_successful_port.lock().unwrap();
@@ -176,7 +186,7 @@ mod tests {
         let pool = build_available_pool();
         let _occupied = pool
             .iter()
-            .map(|port| WebSocketServer::bind("127.0.0.1", *port).unwrap())
+            .map(|port| WebSocketServer::bind(LISTEN_HOST, *port).unwrap())
             .collect::<Vec<_>>();
         let state = RoomPreparationState::new(pool.clone());
 

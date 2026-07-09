@@ -1,13 +1,16 @@
+use serde::{Deserialize, Serialize};
+
 use crate::room_state::RoomState;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum WebRtcSignalType {
     Offer,
     Answer,
     IceCandidate,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct WebRtcSignal {
     pub from: String,
     pub target: String,

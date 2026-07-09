@@ -21,31 +21,29 @@ describe('MainArea Component', () => {
       />,
     );
 
-  it('should render the top navigation and network status', () => {
+  it('should render the connection status as direct by default', () => {
     renderMainArea();
-    expect(screen.getByText(/房间聊天区/)).toBeInTheDocument();
-    expect(screen.getByText(/Ping: 24ms/)).toBeInTheDocument();
-    expect(screen.getByText(/P2P直连/)).toBeInTheDocument();
+    expect(screen.getByText('直连')).toBeInTheDocument();
   });
 
   it('should render relay network status when fallback is active', () => {
     renderMainArea(vi.fn(), [], 'relay', '房主直连入口不可达，已回退到中转模式。');
-    expect(screen.getByText(/Relay中转/)).toBeInTheDocument();
-    expect(screen.getByText(/房主直连入口不可达，已回退到中转模式。/)).toBeInTheDocument();
+    expect(screen.getByText('经房主中转')).toBeInTheDocument();
+    expect(screen.getByText(/房主直连入口不可达/)).toBeInTheDocument();
   });
 
-  it('should render the screen share button', () => {
+  it('should render the screen share control', () => {
     renderMainArea();
-    expect(screen.getByText('开始共享')).toBeInTheDocument();
+    expect(screen.getByLabelText('Screen share')).toBeInTheDocument();
   });
 
-  it('should toggle screen share state when clicked', () => {
+  it('should start sharing via the start popover and show the self-view', () => {
     renderMainArea();
-    const shareBtn = screen.getByText('开始共享');
-    
-    fireEvent.click(shareBtn);
-    expect(screen.getByText('停止共享')).toBeInTheDocument();
-    expect(screen.getByText(/正在共享/)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Screen share'));
+    fireEvent.click(screen.getByText('开始共享'));
+
+    expect(screen.getByText('共享中')).toBeInTheDocument();
+    expect(screen.getByText('停止')).toBeInTheDocument();
   });
 
   it('should be able to type and send messages', () => {
@@ -58,51 +56,37 @@ describe('MainArea Component', () => {
         onSendMessage={onSendMessage}
       />,
     );
-    const input = screen.getByPlaceholderText('输入消息... (支持 Ctrl+V 粘贴截图)');
-    
+    const input = screen.getByPlaceholderText('给房间发消息（支持粘贴截图）');
+
     fireEvent.change(input, { target: { value: 'Hello World' } });
     expect(input).toHaveValue('Hello World');
 
-    // Simulate Enter key
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
-    
-    // Message should be added to the list and input cleared
+
     expect(onSendMessage).toHaveBeenCalledWith('Hello World');
     expect(input).toHaveValue('');
   });
 
-  it('should show error bubble when upload button is clicked (mocked error)', () => {
-    vi.useFakeTimers();
+  it('should show an error bubble when the upload button is clicked', () => {
     renderMainArea();
-    
+
     const uploadBtn = screen.getByTitle('上传图片/文件');
     fireEvent.click(uploadBtn);
-    
-    const errorMsg = screen.getByText('⚠️ 图片大小不能超过 5MB');
-    expect(errorMsg).toBeInTheDocument();
-    
-    // Fast forward time to check if it disappears
-    vi.advanceTimersByTime(3000);
-    // expect(screen.queryByText('⚠️ 图片大小不能超过 5MB')).not.toBeInTheDocument();
-    
-    vi.useRealTimers();
+
+    expect(screen.getByText('图片大小不能超过 5MB')).toBeInTheDocument();
   });
 
-  it('should open settings from center control bar', () => {
+  it('should open settings from the control bar', () => {
     const onOpenSettings = vi.fn();
     renderMainArea(onOpenSettings);
-    fireEvent.click(screen.getByTitle('设置'));
+    fireEvent.click(screen.getByLabelText('Settings'));
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
   });
 
-  it('should toggle microphone mute and adjust microphone volume', () => {
+  it('should toggle microphone mute', () => {
     renderMainArea();
-    const micToggle = screen.getByTitle('麦克风开关');
-    fireEvent.click(micToggle);
-    expect(micToggle).toHaveTextContent('🎙️');
-
-    const micSlider = screen.getByTitle('麦克风音量');
-    fireEvent.change(micSlider, { target: { value: '35' } });
-    expect(screen.getByText('35%')).toBeInTheDocument();
+    const micBtn = screen.getByLabelText('Microphone');
+    fireEvent.click(micBtn);
+    expect(micBtn).toHaveClass('off');
   });
 });

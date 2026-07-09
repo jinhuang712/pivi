@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import type { RoomNetworkPath } from '../types/channel';
 import type { ChatMessage } from '../types/channel';
+import { T, useLang } from '../providers';
 
 interface MainAreaProps {
   onOpenSettings?: () => void;
+  onLeave?: () => void;
   currentUserName: string;
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
@@ -11,23 +13,39 @@ interface MainAreaProps {
   networkNotice?: string;
 }
 
+const Icons = {
+  mic: <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>,
+  micOff: <svg viewBox="0 0 24 24"><path d="M9 9v2a3 3 0 0 0 5 2M15 9.3V5a3 3 0 0 0-5.7-1.3M19 11a7 7 0 0 1-.5 2.6M12 18v3M3 3l18 18" /></svg>,
+  sound: <svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z" /><path d="M16 8a5 5 0 0 1 0 8" /></svg>,
+  share: <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2" /><path d="M8 21h8" /></svg>,
+  setup: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" /></svg>,
+  leave: <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></svg>,
+};
+
 const MainArea: React.FC<MainAreaProps> = ({
   onOpenSettings,
+  onLeave,
   currentUserName,
   messages,
   onSendMessage,
   networkPath = 'p2p',
   networkNotice,
 }) => {
+  const { lang } = useLang();
   const [isSharing, setIsSharing] = useState(false);
-  const [isExpandedShare, setIsExpandedShare] = useState(false);
-  const [quality, setQuality] = useState('1080p');
+  const [showStartPanel, setShowStartPanel] = useState(false);
+  const [quality, setQuality] = useState<'1080' | '720' | '480'>('1080');
+  const [shareAudio, setShareAudio] = useState(true);
   const [isMicMuted, setIsMicMuted] = useState(false);
-  const [micVolume, setMicVolume] = useState(100);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
-  const [speakerVolume, setSpeakerVolume] = useState(100);
   const [inputValue, setInputValue] = useState('');
   const [showError, setShowError] = useState(false);
+
+  const isRelay = networkPath === 'relay';
+  const qhints = {
+    zh: { '1080': '1080p · 最清晰，带宽占用最高。', '720': '720p · 均衡，多数房间默认。', '480': '480p · 最省，慢链路首选。' },
+    en: { '1080': '1080p · sharpest. Most bandwidth.', '720': '720p · balanced. Good default.', '480': '480p · lightest. Slow links.' },
+  };
 
   const handleSend = () => {
     if (!inputValue.trim()) return;
@@ -36,9 +54,7 @@ const MainArea: React.FC<MainAreaProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSend();
-    }
+    if (e.key === 'Enter') handleSend();
   };
 
   const handleSimulateUploadError = () => {
@@ -46,225 +62,159 @@ const MainArea: React.FC<MainAreaProps> = ({
     setTimeout(() => setShowError(false), 3000);
   };
 
-  const handleSpeakerToggle = () => {
-    setIsSpeakerMuted(prev => !prev);
+  const startSharing = () => {
+    setShowStartPanel(false);
+    setIsSharing(true);
   };
 
-  const handleMicToggle = () => {
-    setIsMicMuted(prev => !prev);
+  const stopSharing = () => {
+    setIsSharing(false);
+    setShowStartPanel(false);
   };
 
   return (
-    <main className="flex-1 flex flex-col relative bg-[#313338] h-full overflow-hidden">
-      <div className="h-14 border-b border-[#2b2d31] flex justify-between items-center px-6 flex-shrink-0">
-        <div className="flex space-x-4 text-white font-bold text-lg">
-          <span>房间聊天区</span>
+    <main className="main">
+      <div className="topbar">
+        <div className="conn">
+          <span className={`tick ${isRelay ? 'relay' : ''}`} />
+          <span>{isRelay ? <T zh="经房主中转" en="Via host" /> : <T zh="直连" en="Direct" />}</span>
+          {networkNotice && <span className="p">· {networkNotice}</span>}
         </div>
-        
-        <div className="flex items-center space-x-4">
-          <div 
-            className={`flex items-center space-x-2 text-xs px-2 py-1.5 rounded cursor-pointer hover:bg-[#1e1f22] ${
-              networkPath === 'relay' ? 'text-amber-300 bg-amber-500/10' : 'text-green-400 bg-[#2b2d31]'
-            }`}
-            title="点击展开/收起网络详情"
-          >
-            <span>Ping: 24ms</span>
-            <span className="text-gray-500">|</span>
-            <span>{networkPath === 'relay' ? 'Relay中转' : 'P2P直连'}</span>
-            {networkNotice && (
-              <>
-                <span className="text-gray-500">|</span>
-                <span>{networkNotice}</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 flex flex-col relative min-h-0">
-        {isExpandedShare && isSharing && (
-          <div className="flex-1 bg-[#1e1f22] border-b border-[#2b2d31] flex flex-col items-center justify-center relative min-h-0">
-            <button 
-              onClick={() => setIsExpandedShare(false)}
-              className="absolute top-4 right-4 bg-black bg-opacity-60 hover:bg-opacity-80 text-white px-3 py-1 rounded text-sm transition-all z-10"
-            >
-              缩小至角落 ↘️
-            </button>
-            <span className="text-6xl mb-4">🎮</span>
-            <span className="text-gray-400 font-medium">完整屏幕画面 ({quality})</span>
+        {isSharing && (
+          <div className="share-ind">
+            <span className="ld" />
+            <span><T zh="你在共享" en="You're sharing" /></span>
+            <span className="q">{quality}p</span>
           </div>
         )}
+      </div>
 
-        <div className={`flex flex-col bg-[#313338] min-h-0 ${isExpandedShare && isSharing ? 'h-1/3' : 'flex-1'}`}>
-          {!isExpandedShare && isSharing && (
-            <div 
-              className="absolute top-4 right-4 z-20 w-64 h-36 bg-black border border-gray-600 rounded-lg shadow-2xl overflow-hidden group cursor-pointer" 
-              onClick={() => setIsExpandedShare(true)}
-            >
-              {/* Blurred Background */}
-              <div className="absolute inset-0 flex items-center justify-center filter blur-sm group-hover:blur-none transition-all duration-300">
-                 <span className="text-4xl">🎮</span>
-              </div>
-              {/* Overlay */}
-              <div className="absolute inset-0 bg-black bg-opacity-40 group-hover:bg-opacity-10 transition-all flex items-center justify-center">
-                <span className="text-white text-sm font-bold bg-black bg-opacity-60 px-3 py-1 rounded opacity-100 group-hover:opacity-0 transition-opacity">
-                  点击放大画面
-                </span>
-              </div>
-              {/* Label */}
-              <div className="absolute bottom-2 left-2 text-[10px] text-white bg-black bg-opacity-60 px-1.5 py-0.5 rounded">
-                正在共享 ({quality})
+      <div className="chat">
+        {messages.length === 0 && (
+          <div className="msg-empty">
+            <T zh="暂无消息，发送第一条开始聊天。" en="No messages yet. Send the first one." />
+          </div>
+        )}
+        {messages.map((msg) => (
+          <div className="msg" key={msg.id}>
+            <div className="mh">
+              <span className="ts">{msg.time}</span>
+              <span className={`sn ${msg.isSelf ? 'me' : ''}`}>{msg.isSelf ? currentUserName : msg.sender}</span>
+            </div>
+            <div className="bd">{msg.content}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="composer">
+        <div className="f">
+          <button
+            onClick={handleSimulateUploadError}
+            style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '16px', padding: '0 4px' }}
+            title={lang === 'zh' ? '上传图片/文件' : 'Upload image / file'}
+          >
+            +
+          </button>
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={lang === 'zh' ? '给房间发消息（支持粘贴截图）' : 'Message the room (paste an image)'}
+          />
+          <span className="lim">5 MB</span>
+        </div>
+        {showError && (
+          <div style={{ marginTop: 8, fontSize: 12, color: 'var(--danger)' }}>
+            <T zh="图片大小不能超过 5MB" en="Image can't exceed 5 MB" />
+          </div>
+        )}
+      </div>
+
+      <div className="controls">
+        <button
+          className={`ctl ${isMicMuted ? 'off' : 'on'}`}
+          onClick={() => setIsMicMuted((v) => !v)}
+          aria-label="Microphone"
+        >
+          <span className="ic">{isMicMuted ? Icons.micOff : Icons.mic}</span>
+          <span className="lb"><T zh="麦克风" en="Mic" /></span>
+        </button>
+        <button
+          className={`ctl ${isSpeakerMuted ? 'off' : 'on'}`}
+          onClick={() => setIsSpeakerMuted((v) => !v)}
+          aria-label="Speakers"
+        >
+          <span className="ic">{Icons.sound}</span>
+          <span className="lb"><T zh="音量" en="Sound" /></span>
+        </button>
+        <div style={{ position: 'relative' }}>
+          <button
+            className={`ctl ${isSharing ? 'on' : ''}`}
+            onClick={() => (isSharing ? stopSharing() : setShowStartPanel((v) => !v))}
+            aria-label="Screen share"
+          >
+            <span className="ic">{Icons.share}</span>
+            <span className="lb">{isSharing ? <T zh="共享中" en="Sharing" /> : <T zh="共享" en="Share" />}</span>
+          </button>
+          {showStartPanel && !isSharing && (
+            <div className="ctl-pop">
+              <div className="panel">
+                <h2><T zh="共享你的屏幕" en="Share your screen" /></h2>
+                <p className="sub"><T zh="房间里的每个人都会点对点看到你选的内容。" en="Everyone sees what you pick, peer-to-peer." /></p>
+                <div className="qrow">
+                  <div className="ql"><T zh="画质" en="Quality" /></div>
+                  <div className="seg">
+                    {(['1080', '720', '480'] as const).map((q) => (
+                      <button key={q} className={quality === q ? 'on' : ''} onClick={() => setQuality(q)}>{q}p</button>
+                    ))}
+                  </div>
+                  <div className="qhint">{qhints[lang][quality]}</div>
+                </div>
+                <div className="audrow">
+                  <div className="nm">
+                    <T zh="共享电脑音频" en="Share computer audio" />
+                    <small><T zh="听众能听到你的系统声音" en="Listeners hear your system sound" /></small>
+                  </div>
+                  <button className={`switch ${shareAudio ? 'on' : ''}`} onClick={() => setShareAudio((v) => !v)} aria-label="Share audio" />
+                </div>
+                <p className="note">
+                  <T zh="继续后，系统会问你选哪块屏幕或窗口。" en="When you continue, your system asks which screen or window." />
+                </p>
+                <div className="panel-foot">
+                  <button className="btn ghost" onClick={() => setShowStartPanel(false)}><T zh="取消" en="Cancel" /></button>
+                  <button className="btn primary" onClick={startSharing}><T zh="开始共享" en="Start sharing" /></button>
+                </div>
               </div>
             </div>
           )}
+        </div>
+        <button className="ctl" onClick={onOpenSettings} aria-label="Settings">
+          <span className="ic">{Icons.setup}</span>
+          <span className="lb"><T zh="设置" en="Setup" /></span>
+        </button>
+        <button className="ctl leave" onClick={onLeave} aria-label="Leave">
+          <span className="ic">{Icons.leave}</span>
+          <span className="lb"><T zh="离开" en="Leave" /></span>
+        </button>
+      </div>
 
-          <div className="flex-1 p-4 overflow-y-auto space-y-4" id="chat-messages">
-            {messages.length === 0 && (
-              <div className="text-sm text-gray-500">暂无消息，发送第一条消息开始聊天。</div>
-            )}
-            {messages.map((msg) => (
-              <div key={msg.id} className="flex space-x-3">
-                <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold ${msg.isSelf ? 'bg-blue-500' : 'bg-gray-500'}`}>
-                  {msg.isSelf ? '我' : msg.sender.charAt(0)}
-                </div>
-                <div>
-                  <div className="flex items-baseline space-x-2">
-                    <span className={`font-medium text-sm ${msg.isSelf ? 'text-blue-400' : 'text-gray-300'}`}>
-                      {msg.isSelf ? currentUserName : msg.sender}
-                    </span>
-                    <span className="text-xs text-gray-500">{msg.time}</span>
-                  </div>
-                  <p className="text-sm text-gray-300 mt-1">{msg.content}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="px-4 pb-3">
-            <div className="mx-auto max-w-full bg-[#1e1f22] border border-gray-700 rounded-full px-3 py-2 flex items-center gap-3 shadow-lg">
-              {!isSharing ? (
-                <button 
-                  onClick={() => setIsSharing(true)}
-                  className="text-sm bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-1.5 rounded-full transition-colors flex items-center space-x-1 whitespace-nowrap flex-shrink-0"
-                >
-                  <span>📺</span>
-                  <span>开始共享</span>
-                </button>
-              ) : (
-                <>
-                  <select 
-                    value={quality} 
-                    onChange={(e) => setQuality(e.target.value)}
-                    className="bg-[#2b2d31] text-xs text-gray-300 border border-gray-700 rounded-full px-2 py-1 outline-none cursor-pointer whitespace-nowrap flex-shrink-0"
-                  >
-                    <option value="720p">720p</option>
-                    <option value="1080p">1080p</option>
-                    <option value="原画">原画</option>
-                  </select>
-                  <button 
-                    onClick={() => { setIsSharing(false); setIsExpandedShare(false); }}
-                    className="text-sm bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-full transition-colors whitespace-nowrap flex-shrink-0"
-                  >
-                    停止共享
-                  </button>
-                </>
-              )}
-
-              <div className="h-6 w-px bg-gray-700" />
-              <div className="relative group flex items-center gap-1.5">
-                <button
-                  onClick={handleMicToggle}
-                  className={`p-2 rounded-full transition-colors ${isMicMuted ? 'text-red-400 hover:text-red-300' : 'text-gray-300 hover:text-white'}`}
-                  title="麦克风开关"
-                >
-                  {isMicMuted ? '🎙️' : '🎤'}
-                </button>
-                <span className="text-xs text-gray-300 font-mono w-9 text-right">{micVolume}%</span>
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-10 hidden group-hover:flex bg-[#111318] border border-gray-700 rounded-lg px-2 py-3 shadow-xl">
-                  <div className="h-24 w-8 flex items-center justify-center">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={micVolume}
-                      onChange={(e) => setMicVolume(parseInt(e.target.value, 10))}
-                      className="w-24 h-1 -rotate-90 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                      title="麦克风音量"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="h-6 w-px bg-gray-700" />
-              <div className="relative group flex items-center gap-1.5">
-                <button
-                  onClick={handleSpeakerToggle}
-                  className={`p-2 rounded-full transition-colors ${isSpeakerMuted ? 'text-red-400 hover:text-red-300' : 'text-gray-300 hover:text-white'}`}
-                  title="扬声器开关"
-                >
-                  {isSpeakerMuted ? '🔇' : '🎧'}
-                </button>
-                <span className="text-xs text-gray-300 font-mono w-9 text-right">{speakerVolume}%</span>
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-10 hidden group-hover:flex bg-[#111318] border border-gray-700 rounded-lg px-2 py-3 shadow-xl">
-                  <div className="h-24 w-8 flex items-center justify-center">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={speakerVolume}
-                      onChange={(e) => setSpeakerVolume(parseInt(e.target.value, 10))}
-                      className="w-24 h-1 -rotate-90 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                      title="扬声器音量"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="h-6 w-px bg-gray-700" />
-              <button 
-                onClick={onOpenSettings}
-                className="p-2 rounded-full text-gray-300 hover:text-white transition-colors"
-                title="设置"
-              >
-                ⚙️
-              </button>
+      {/* presenter self-view PiP */}
+      {isSharing && (
+        <div className="pip">
+          <div className="pip-frame">
+            <span className="live-tag">● live</span>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 11 }}>
+              <T zh="你的屏幕" en="your screen" />
             </div>
           </div>
-
-          <div className="p-4 pt-2 relative border-t border-[#2b2d31]">
-          {showError && (
-            <div className="absolute -top-8 left-4 bg-red-500 text-white text-xs px-3 py-1 rounded shadow-lg">
-              ⚠️ 图片大小不能超过 5MB
-            </div>
-          )}
-          
-          <div className="bg-[#383a40] rounded-lg flex items-center p-2 focus-within:ring-1 ring-indigo-500 transition-all">
-            <button 
-              onClick={handleSimulateUploadError}
-              className="text-gray-400 hover:text-white px-2 cursor-pointer transition-colors" 
-              title="上传图片/文件"
-            >
-              <span className="text-xl">⊕</span>
-            </button>
-            <input 
-              type="text" 
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="输入消息... (支持 Ctrl+V 粘贴截图)" 
-              className="flex-1 bg-transparent border-none outline-none text-sm text-gray-200 px-2 placeholder-gray-500"
-            />
-            <button 
-              onClick={handleSend}
-              className="text-gray-400 hover:text-indigo-400 px-2 cursor-pointer transition-colors" 
-              title="发送"
-            >
-              <svg className="w-5 h-5 transform rotate-90" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path>
-              </svg>
-            </button>
+          <div className="pip-label">
+            <span />
+            <span><T zh="你的共享屏幕" en="Your shared screen" /></span>
+            <button className="stop" onClick={stopSharing}><T zh="停止" en="Stop" /></button>
           </div>
         </div>
-      </div>
-      </div>
+      )}
     </main>
   );
 };

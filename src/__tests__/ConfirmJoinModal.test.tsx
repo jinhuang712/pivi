@@ -14,20 +14,20 @@ describe('ConfirmJoinModal Component', () => {
 
   it('should not render when isOpen is false', () => {
     render(<ConfirmJoinModal {...defaultProps} isOpen={false} />);
-    expect(screen.queryByText('是否加入房间？')).not.toBeInTheDocument();
+    expect(screen.queryByText('加入这个房间？')).not.toBeInTheDocument();
   });
 
   it('should render room information correctly', () => {
     render(<ConfirmJoinModal {...defaultProps} />);
-    expect(screen.getByText('是否加入房间？')).toBeInTheDocument();
-    expect(screen.getByText('「周末电竞开黑房」')).toBeInTheDocument();
-    expect(screen.getByText(/当前在线：3 人/)).toBeInTheDocument();
-    expect(screen.getByText(/房主：HuangJin/)).toBeInTheDocument();
+    expect(screen.getByText('加入这个房间？')).toBeInTheDocument();
+    expect(screen.getByText('周末电竞开黑房')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText(/HuangJin/)).toBeInTheDocument();
   });
 
   it('should call onConfirm when confirm button is clicked', () => {
     render(<ConfirmJoinModal {...defaultProps} />);
-    const confirmBtn = screen.getByText('确认加入');
+    const confirmBtn = screen.getByText('加入');
     fireEvent.click(confirmBtn);
     expect(defaultProps.onConfirm).toHaveBeenCalledTimes(1);
   });

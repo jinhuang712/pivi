@@ -39,6 +39,9 @@ export const getCurrentInviteExpirySlot = (date = new Date()) =>
 export const normalizeInviteCode = (code: string) =>
   code.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+export const getPreferredLocalIpv4 = () =>
+  invoke<string>('get_preferred_local_ipv4');
+
 export const generateInviteCode = (payload: InviteCodePayload) =>
   invoke<string>('generate_invite_code', { payload });
 

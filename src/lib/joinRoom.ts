@@ -7,8 +7,7 @@ const DEFAULT_PROBE_TIMEOUTS = [100, 200, 350];
 export class JoinRoomResolutionError extends Error {
   constructor(
     public readonly code:
-      | 'invalid-invite'
-      | 'room-not-found',
+      | 'invalid-invite',
     message: string,
   ) {
     super(message);
@@ -17,7 +16,7 @@ export class JoinRoomResolutionError extends Error {
 }
 
 interface ResolveJoinRoomOptions {
-  findRoomByInviteCode: (inviteCode: string) => RoomSnapshot | undefined;
+  findRoomByInviteCode?: (inviteCode: string) => RoomSnapshot | undefined;
   probeTimeouts?: number[];
   probeRoomEndpointImpl?: typeof probeRoomEndpoint;
   prettifyInviteCodeImpl?: typeof prettifyInviteCode;
@@ -26,9 +25,11 @@ interface ResolveJoinRoomOptions {
 
 export interface ResolveJoinRoomResult {
   formattedInviteCode: string;
-  room: RoomSnapshot;
+  room: RoomSnapshot | null;
   networkPath: RoomNetworkPath;
   resolutionNotice?: string;
+  endpointHost: string;
+  endpointPort: number;
 }
 
 export const resolveJoinRoom = async (
@@ -56,10 +57,7 @@ export const resolveJoinRoom = async (
     throw new JoinRoomResolutionError('invalid-invite', '邀请码无效或已过期，请确认输入无误。');
   }
 
-  const room = findRoomByInviteCode(formattedInviteCode);
-  if (!room) {
-    throw new JoinRoomResolutionError('room-not-found', '邀请码已解析，但房间尚未就绪，请稍后重试。');
-  }
+  const room = findRoomByInviteCode?.(formattedInviteCode) ?? null;
 
   const lastProbe = await probeInviteEndpointWithRetry(
     parsedInvite.ipv4,
@@ -73,6 +71,8 @@ export const resolveJoinRoom = async (
       room,
       networkPath: 'relay',
       resolutionNotice: '房主直连入口不可达，已回退到中转模式。',
+      endpointHost: parsedInvite.ipv4,
+      endpointPort: parsedInvite.port,
     };
   }
 
@@ -80,6 +80,8 @@ export const resolveJoinRoom = async (
     formattedInviteCode,
     room,
     networkPath: 'p2p',
+    endpointHost: parsedInvite.ipv4,
+    endpointPort: parsedInvite.port,
   };
 };
 

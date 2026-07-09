@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::room_state::{ConnectionState, MemberRole, MemberState, RoomState};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct MemberSnapshot {
     pub member_id: String,
     pub display_name: String,
@@ -11,7 +12,7 @@ pub struct MemberSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "type", content = "payload")]
+#[serde(tag = "type", content = "payload", rename_all_fields = "camelCase")]
 pub enum RoomBroadcastMessage {
     RoomState { room_id: String, members: Vec<MemberSnapshot> },
     MemberJoined { member: MemberSnapshot },

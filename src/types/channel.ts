@@ -22,6 +22,9 @@ export interface JoinPreview {
   onlineCount: number;
   networkPath: RoomNetworkPath;
   resolutionNotice?: string;
+  roomId: string;
+  endpointHost: string;
+  endpointPort: number;
 }
 
 export type RoomMember = Member;

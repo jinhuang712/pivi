@@ -20,6 +20,7 @@ const renderSidebar = () =>
     <Sidebar
       roomName="周末电竞开黑房"
       inviteCode="AB12-CD34-EF56-GH78"
+      currentUserId="me"
       currentUserName="HuangJin"
       members={members}
       isCurrentUserHost
@@ -36,9 +37,9 @@ describe('Sidebar Component', () => {
     expect(screen.getByText('AB12-CD34-EF56-GH78')).toBeInTheDocument();
   });
 
-  it('should render the local control panel', () => {
+  it('should render the current user and keep controls out of the sidebar', () => {
     renderSidebar();
-    expect(screen.getByText('HuangJin')).toBeInTheDocument();
+    expect(screen.getAllByText('HuangJin').length).toBeGreaterThan(0);
     expect(screen.queryByTitle('扬声器开关')).not.toBeInTheDocument();
     expect(screen.queryByTitle('设置')).not.toBeInTheDocument();
   });

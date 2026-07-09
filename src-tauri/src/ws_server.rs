@@ -23,6 +23,10 @@ impl WebSocketServer {
     pub fn is_listening(&self) -> bool {
         self.listener.local_addr().is_ok()
     }
+
+    pub fn try_clone_listener(&self) -> io::Result<TcpListener> {
+        self.listener.try_clone()
+    }
 }
 
 #[cfg(test)]

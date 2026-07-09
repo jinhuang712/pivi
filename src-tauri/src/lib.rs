@@ -8,10 +8,20 @@ pub mod invite_code;
 pub mod nat_mapping;
 pub mod room_preparation;
 pub mod room_broadcast;
+pub mod control_runtime;
 pub mod webrtc_router;
 pub mod host_migration;
+pub mod host_runtime_session;
 pub mod hotkeys;
 
+use std::net::{Ipv4Addr, UdpSocket};
+
+use control_runtime::{
+    request_remote_join_room, request_remote_relay_signal, request_remote_room_events,
+    request_remote_room_state,
+    spawn_control_runtime_listener,
+};
+use host_runtime_session::HostRuntimeSessionManager;
 use hotkeys::{register_global_hotkeys, unregister_global_hotkeys, HotkeyState};
 use invite_code::{
     decode_invite_code, encode_invite_code, format_invite_code, InviteCodePayload, InviteEndpointScope,
@@ -161,6 +171,182 @@ fn probe_room_endpoint(ipv4: String, port: u16, timeout_ms: u64) -> Result<Endpo
     })
 }
 
+#[tauri::command]
+fn get_preferred_local_ipv4() -> Result<String, String> {
+    detect_preferred_local_ipv4()
+        .map(|ipv4| ipv4.to_string())
+        .ok_or_else(|| "preferred local ipv4 not found".to_string())
+}
+
+#[tauri::command]
+fn start_host_runtime_session(
+    state: tauri::State<'_, HostRuntimeSessionManager>,
+    room_preparation: tauri::State<'_, RoomPreparationState>,
+    room_id: String,
+    host_id: String,
+    host_name: String,
+    invite_code: String,
+    current_slot: u16,
+    listen_host: String,
+    listen_port: u16,
+) -> Result<host_runtime_session::HostRuntimeReady, String> {
+    let lan_ipv4: Ipv4Addr = listen_host
+        .parse()
+        .map_err(|_| format!("invalid listen host: {listen_host}"))?;
+    let runtime = state
+        .start_host_session(
+            &room_id,
+            &host_id,
+            &host_name,
+            &invite_code,
+            current_slot,
+            &listen_host,
+            listen_port,
+            lan_ipv4,
+        )
+        .map_err(|err| format!("{err:?}"))?;
+
+    let listener = room_preparation
+        .active_listener_clone()
+        .ok_or_else(|| "active control listener not found".to_string())?;
+    spawn_control_runtime_listener(listener, state.inner().clone())
+        .map_err(|err| format!("failed to spawn control listener: {err}"))?;
+
+    Ok(runtime)
+}
+
+#[tauri::command]
+fn join_host_runtime_session(
+    state: tauri::State<'_, HostRuntimeSessionManager>,
+    room_id: String,
+    invite_code: String,
+    current_slot: u16,
+    user_id: String,
+    display_name: String,
+) -> Result<host_runtime_session::JoinRuntimeAccepted, String> {
+    state
+        .join_host_session(&room_id, &invite_code, current_slot, &user_id, &display_name)
+        .map_err(|err| format!("{err:?}"))
+}
+
+#[tauri::command]
+fn join_remote_host_runtime_session(
+    ipv4: String,
+    port: u16,
+    room_id: String,
+    invite_code: String,
+    current_slot: u16,
+    user_id: String,
+    display_name: String,
+) -> Result<host_runtime_session::JoinRuntimeAccepted, String> {
+    let ipv4 = ipv4
+        .parse()
+        .map_err(|_| format!("invalid ipv4 address: {ipv4}"))?;
+    request_remote_join_room(
+        ipv4,
+        port,
+        &room_id,
+        &invite_code,
+        current_slot,
+        &user_id,
+        &display_name,
+    )
+}
+
+#[tauri::command]
+fn get_host_runtime_room_state(
+    state: tauri::State<'_, HostRuntimeSessionManager>,
+    room_id: String,
+) -> Option<room_broadcast::RoomBroadcastMessage> {
+    state.get_room_state(&room_id)
+}
+
+#[tauri::command]
+fn get_remote_host_runtime_room_state(
+    ipv4: String,
+    port: u16,
+    room_id: String,
+) -> Result<room_broadcast::RoomBroadcastMessage, String> {
+    let ipv4 = ipv4
+        .parse()
+        .map_err(|_| format!("invalid ipv4 address: {ipv4}"))?;
+    request_remote_room_state(ipv4, port, &room_id)
+}
+
+#[tauri::command]
+fn get_host_runtime_room_events(
+    state: tauri::State<'_, HostRuntimeSessionManager>,
+    room_id: String,
+    subscriber_member_id: String,
+    last_sequence: u64,
+) -> Option<Vec<host_runtime_session::RoomRuntimeEvent>> {
+    state.get_events_since_for_member(&room_id, Some(&subscriber_member_id), last_sequence)
+}
+
+#[tauri::command]
+fn get_remote_host_runtime_room_events(
+    ipv4: String,
+    port: u16,
+    room_id: String,
+    subscriber_member_id: String,
+    last_sequence: u64,
+) -> Result<Vec<host_runtime_session::RoomRuntimeEvent>, String> {
+    let ipv4 = ipv4
+        .parse()
+        .map_err(|_| format!("invalid ipv4 address: {ipv4}"))?;
+    request_remote_room_events(ipv4, port, &room_id, &subscriber_member_id, last_sequence)
+}
+
+#[tauri::command]
+fn relay_host_runtime_signal(
+    state: tauri::State<'_, HostRuntimeSessionManager>,
+    room_id: String,
+    from: String,
+    target: String,
+    signal_type: String,
+    payload: String,
+) -> Result<host_runtime_session::RoomRuntimeEvent, String> {
+    let signal_type = match signal_type.as_str() {
+        "Offer" => webrtc_router::WebRtcSignalType::Offer,
+        "Answer" => webrtc_router::WebRtcSignalType::Answer,
+        "IceCandidate" => webrtc_router::WebRtcSignalType::IceCandidate,
+        _ => return Err(format!("unsupported signal type: {signal_type}")),
+    };
+    state
+        .relay_webrtc_signal(&room_id, &from, &target, signal_type, &payload)
+        .map_err(|err| format!("{err:?}"))
+}
+
+#[tauri::command]
+fn relay_remote_runtime_signal(
+    ipv4: String,
+    port: u16,
+    room_id: String,
+    from: String,
+    target: String,
+    signal_type: String,
+    payload: String,
+) -> Result<host_runtime_session::RoomRuntimeEvent, String> {
+    let ipv4 = ipv4
+        .parse()
+        .map_err(|_| format!("invalid ipv4 address: {ipv4}"))?;
+    let signal_type = match signal_type.as_str() {
+        "Offer" => webrtc_router::WebRtcSignalType::Offer,
+        "Answer" => webrtc_router::WebRtcSignalType::Answer,
+        "IceCandidate" => webrtc_router::WebRtcSignalType::IceCandidate,
+        _ => return Err(format!("unsupported signal type: {signal_type}")),
+    };
+    request_remote_relay_signal(ipv4, port, &room_id, &from, &target, signal_type, &payload)
+}
+
+#[tauri::command]
+fn get_host_runtime_ready(
+    state: tauri::State<'_, HostRuntimeSessionManager>,
+    room_id: String,
+) -> Option<host_runtime_session::HostRuntimeReady> {
+    state.get_runtime_ready(&room_id)
+}
+
 fn parse_endpoint_scope(value: &str) -> Result<InviteEndpointScope, String> {
     match value {
         "private-lan-ipv4" => Ok(InviteEndpointScope::PrivateLanIpv4),
@@ -201,10 +387,21 @@ fn format_nat_mapping_protocol(value: nat_mapping::NatMappingProtocol) -> String
     }
 }
 
+fn detect_preferred_local_ipv4() -> Option<Ipv4Addr> {
+    let socket = UdpSocket::bind(("0.0.0.0", 0)).ok()?;
+    socket.connect(("8.8.8.8", 80)).ok()?;
+
+    match socket.local_addr().ok()?.ip() {
+        std::net::IpAddr::V4(ipv4) if !ipv4.is_loopback() && !ipv4.is_unspecified() => Some(ipv4),
+        _ => None,
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(HotkeyState::default())
+        .manage(HostRuntimeSessionManager::default())
         .manage(RoomPreparationState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -217,7 +414,18 @@ pub fn run() {
             prettify_invite_code,
             parse_invite_code,
             prepare_room_invite,
-            probe_room_endpoint
+            probe_room_endpoint,
+            get_preferred_local_ipv4,
+            start_host_runtime_session,
+            join_host_runtime_session,
+            join_remote_host_runtime_session,
+            get_host_runtime_room_state,
+            get_remote_host_runtime_room_state,
+            get_host_runtime_room_events,
+            get_remote_host_runtime_room_events,
+            relay_host_runtime_signal,
+            relay_remote_runtime_signal,
+            get_host_runtime_ready
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

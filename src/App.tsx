@@ -1,49 +1,70 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
 import CodeInput from "./components/CodeInput";
 import ConfirmJoinModal from "./components/ConfirmJoinModal";
 import SettingsModal from "./components/SettingsModal";
 import MainArea from "./components/MainArea";
+import { ThemeProvider, LangProvider, Toggles, T } from "./providers";
 import {
   getCurrentInviteExpirySlot,
+  getPreferredLocalIpv4,
   normalizeInviteCode,
   parseInviteCode,
   prepareRoomInvite,
 } from "./lib/inviteCode";
 import { JoinRoomResolutionError, resolveJoinRoom } from "./lib/joinRoom";
-import type { JoinPreview, RoomMember, RoomSnapshot, ChatMessage, RoomNetworkPath } from "./types/channel";
-
-const ROOM_REGISTRY_KEY = 'lvc_room_registry_v1';
-
-const readRoomRegistry = (): RoomSnapshot[] => {
-  try {
-    const raw = localStorage.getItem(ROOM_REGISTRY_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as RoomSnapshot[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch {
-    return [];
-  }
-};
-
-const writeRoomRegistry = (rooms: RoomSnapshot[]) => {
-  localStorage.setItem(ROOM_REGISTRY_KEY, JSON.stringify(rooms));
-};
+import { createControlSession } from "./lib/controlSession";
+import { createWebRtcSession } from "./media/webrtcSession";
+import { appendRuntimeLog, buildRuntimeDiagnosticsText } from "./lib/runtimeLog";
+import {
+  getHostRuntimeRoomEvents,
+  getHostRuntimeRoomState,
+  getRemoteHostRuntimeRoomEvents,
+  getRemoteHostRuntimeRoomState,
+  joinRemoteHostRuntimeSession,
+  relayHostRuntimeSignal,
+  relayRemoteRuntimeSignal,
+  startHostRuntimeSession,
+} from "./lib/runtimeSession";
+import type { JoinPreview, RoomMember, ChatMessage, RoomNetworkPath } from "./types/channel";
+import type { ControlRuntimeMessage, MemberSnapshot, RoomBroadcastMessage, WebRtcSignalMessage } from "./types/runtimeSession";
 
 const makeMemberId = () => `uuid-${crypto.randomUUID().slice(0, 8)}`;
 
-const buildMockInviteEndpoint = () => {
+const buildInviteEndpoint = async () => {
   const expirySlot = (getCurrentInviteExpirySlot() + 12) % 1024;
 
   return {
-    ipv4: "127.0.0.1",
+    ipv4: await getPreferredLocalIpv4(),
     expirySlot,
   };
 };
 
-function App() {
+const toRoomMember = (member: MemberSnapshot): RoomMember => ({
+  id: member.memberId,
+  name: member.displayName,
+  isHost: member.role === 'Host',
+  isSpeaking: false,
+  localMuted: false,
+  serverMuted: false,
+  volume: 100,
+});
+
+const toRoomMembers = (roomState: RoomBroadcastMessage) =>
+  roomState.type === 'RoomState' ? roomState.payload.members.map(toRoomMember) : [];
+
+const deriveHostDisplayName = (roomState: RoomBroadcastMessage) => {
+  if (roomState.type !== 'RoomState') {
+    return 'Host';
+  }
+
+  return roomState.payload.members.find((member) => member.role === 'Host')?.displayName ?? 'Host';
+};
+
+const deriveRoomName = (roomState: RoomBroadcastMessage) => `${deriveHostDisplayName(roomState)} 的房间`;
+
+function AppShell() {
   const [appState, setAppState] = useState<'join' | 'preparing' | 'confirm' | 'channel'>('join');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [joinError, setJoinError] = useState('');
@@ -51,6 +72,9 @@ function App() {
   const [pendingJoin, setPendingJoin] = useState<JoinPreview | null>(null);
   const [roomName, setRoomName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [activeRoomId, setActiveRoomId] = useState('');
+  const [activeRemoteEndpoint, setActiveRemoteEndpoint] = useState<{ host: string; port: number } | null>(null);
+  const [activeRoomStartSequence, setActiveRoomStartSequence] = useState(0);
   const [networkPath, setNetworkPath] = useState<RoomNetworkPath>('p2p');
   const [networkNotice, setNetworkNotice] = useState('');
   const [members, setMembers] = useState<RoomMember[]>([]);
@@ -68,37 +92,213 @@ function App() {
   }, []);
 
   const currentUserIsHost = members.find((m) => m.id === currentUserId)?.isHost ?? false;
+  const controlSessionRef = useRef<ReturnType<typeof createControlSession> | null>(null);
+  const peerSessionsRef = useRef(new Map<string, ReturnType<typeof createWebRtcSession>>());
+  const activeRoomIdRef = useRef('');
+  const activeRemoteEndpointRef = useRef<{ host: string; port: number } | null>(null);
+
+  useEffect(() => {
+    activeRoomIdRef.current = activeRoomId;
+  }, [activeRoomId]);
+
+  useEffect(() => {
+    activeRemoteEndpointRef.current = activeRemoteEndpoint;
+  }, [activeRemoteEndpoint]);
+
+  useEffect(() => {
+    return () => {
+      peerSessionsRef.current.forEach((session) => session.close());
+      peerSessionsRef.current.clear();
+    };
+  }, []);
+
+  const sendWebRtcSignal = async (
+    peerId: string,
+    signalType: WebRtcSignalMessage['payload']['signalType'],
+    payload: string,
+  ) => {
+    const roomId = activeRoomIdRef.current;
+    if (!roomId) {
+      return;
+    }
+
+    const remoteEndpoint = activeRemoteEndpointRef.current;
+    if (remoteEndpoint) {
+      await relayRemoteRuntimeSignal({
+        ipv4: remoteEndpoint.host,
+        port: remoteEndpoint.port,
+        roomId,
+        from: currentUserId,
+        target: peerId,
+        signalType,
+        payload,
+      });
+      return;
+    }
+
+    await relayHostRuntimeSignal({
+      roomId,
+      from: currentUserId,
+      target: peerId,
+      signalType,
+      payload,
+    });
+  };
+
+  const ensurePeerSession = (peerId: string) => {
+    const existing = peerSessionsRef.current.get(peerId);
+    if (existing) {
+      return existing;
+    }
+
+    const session = createWebRtcSession({
+      selfId: currentUserId,
+      peerId,
+      roomId: activeRoomIdRef.current,
+      sendSignal: async ({ target, signalType, payload }) => {
+        await sendWebRtcSignal(target, signalType, payload);
+      },
+      onSignalApplied: (signalType) => {
+        appendRuntimeLog('info', 'webrtc-session', `已处理 ${signalType} 信令，对端=${peerId}`);
+      },
+    });
+    peerSessionsRef.current.set(peerId, session);
+    return session;
+  };
+
+  const applyRuntimeEvent = (message: ControlRuntimeMessage) => {
+    if (message.type === 'WebRtcSignal') {
+      appendRuntimeLog(
+        'info',
+        'runtime-signal',
+        `收到 ${message.payload.signalType} 信令: ${message.payload.from} -> ${message.payload.target}`,
+      );
+      void ensurePeerSession(message.payload.from).handleSignal(message);
+      return;
+    }
+
+    if (message.type !== 'RoomBroadcast') {
+      return;
+    }
+
+    const broadcast = message.payload;
+    if (broadcast.type === 'RoomState') {
+      setMembers(broadcast.payload.members.map(toRoomMember));
+      setRoomName(deriveRoomName(broadcast));
+      const activePeerIds = new Set(
+        broadcast.payload.members
+          .filter((member) => member.memberId !== currentUserId)
+          .map((member) => member.memberId),
+      );
+      peerSessionsRef.current.forEach((session, peerId) => {
+        if (!activePeerIds.has(peerId)) {
+          session.close();
+          peerSessionsRef.current.delete(peerId);
+        }
+      });
+      return;
+    }
+
+    if (broadcast.type === 'MemberJoined') {
+      setMembers((prev) => {
+        if (prev.some((member) => member.id === broadcast.payload.member.memberId)) {
+          return prev;
+        }
+
+        return [...prev, toRoomMember(broadcast.payload.member)];
+      });
+      if (!activeRemoteEndpointRef.current && broadcast.payload.member.memberId !== currentUserId) {
+        void ensurePeerSession(broadcast.payload.member.memberId).startOffer();
+      }
+      return;
+    }
+
+    if (broadcast.type === 'MemberLeft') {
+      setMembers((prev) => prev.filter((member) => member.id !== broadcast.payload.memberId));
+    }
+  };
+
+  useEffect(() => {
+    if (appState !== 'channel' || !activeRoomId) {
+      return;
+    }
+
+    controlSessionRef.current?.stop();
+    controlSessionRef.current = createControlSession({
+      initialSequence: activeRoomStartSequence,
+      getEvents: ({ lastSequence }) =>
+        activeRemoteEndpoint
+          ? getRemoteHostRuntimeRoomEvents({
+              ipv4: activeRemoteEndpoint.host,
+              port: activeRemoteEndpoint.port,
+              roomId: activeRoomId,
+              subscriberMemberId: currentUserId,
+              lastSequence,
+            })
+          : getHostRuntimeRoomEvents({
+              roomId: activeRoomId,
+              subscriberMemberId: currentUserId,
+              lastSequence,
+            }),
+      onMessage: applyRuntimeEvent,
+      onError: (error) => {
+        appendRuntimeLog(
+          'warn',
+          'runtime-poll',
+          error instanceof Error ? error.message : '房间状态轮询失败',
+        );
+      },
+    });
+    controlSessionRef.current.start();
+
+    return () => {
+      controlSessionRef.current?.stop();
+      controlSessionRef.current = null;
+    };
+  }, [activeRemoteEndpoint, activeRoomId, activeRoomStartSequence, appState, currentUserId]);
+
+  const handleCopyDiagnostics = async () => {
+    await navigator.clipboard.writeText(buildRuntimeDiagnosticsText());
+    alert('诊断日志已复制。');
+  };
 
   const handleCreateRoom = async () => {
+    appendRuntimeLog('info', 'create-room', '开始准备房间');
     setJoinError('');
     setPrepareHint('正在启动房主运行时...');
     setAppState('preparing');
 
     try {
-      const endpoint = buildMockInviteEndpoint();
+      const endpoint = await buildInviteEndpoint();
+      appendRuntimeLog('info', 'create-room', `检测到本机 IPv4: ${endpoint.ipv4}`);
       setPrepareHint('正在选择稳定入口端口...');
       const preparedInvite = await prepareRoomInvite(endpoint.ipv4, endpoint.expirySlot);
+      appendRuntimeLog(
+        'info',
+        'create-room',
+        `邀请码已生成，端口=${preparedInvite.port}，映射=${preparedInvite.usedExternalMapping ? preparedInvite.natMappingProtocol ?? 'unknown' : 'none'}`,
+      );
       setPrepareHint(
         preparedInvite.reusedLastSuccessfulPort ? '正在复用上次成功端口...' : '正在校验邀请码可用性...',
       );
       await parseInviteCode(preparedInvite.inviteCode, endpoint.expirySlot);
-      setPrepareHint('正在同步房间信息...');
-      const newRoomName = `${currentUserName} 的房间`;
-      const roomEntry: RoomSnapshot = {
-        inviteCode: preparedInvite.inviteCode,
-        roomName: newRoomName,
+      const roomId = normalizeInviteCode(preparedInvite.inviteCode);
+      const runtimeReady = await startHostRuntimeSession({
+        roomId,
+        hostId: currentUserId,
         hostName: currentUserName,
-      };
-      const registry = readRoomRegistry();
-      writeRoomRegistry(
-        [
-          roomEntry,
-          ...registry.filter(
-            (room) => normalizeInviteCode(room.inviteCode) !== normalizeInviteCode(preparedInvite.inviteCode),
-          ),
-        ].slice(0, 20),
-      );
+        inviteCode: preparedInvite.inviteCode,
+        currentSlot: endpoint.expirySlot,
+        listenHost: endpoint.ipv4,
+        listenPort: preparedInvite.port,
+      });
+      setPrepareHint('正在同步房间信息...');
+      const runtimeRoomState = await getHostRuntimeRoomState(roomId);
+      const newRoomName = runtimeRoomState ? deriveRoomName(runtimeRoomState) : `${currentUserName} 的房间`;
       setInviteCode(preparedInvite.inviteCode);
+      setActiveRoomId(roomId);
+      setActiveRemoteEndpoint(null);
+      setActiveRoomStartSequence(runtimeReady.latestSequence);
       setRoomName(newRoomName);
       setNetworkPath('p2p');
       setNetworkNotice(
@@ -109,45 +309,57 @@ function App() {
             : '',
       );
       setJoinError('');
-      setMembers([
-        {
-          id: currentUserId,
-          name: currentUserName,
-          isHost: true,
-          isSpeaking: false,
-          localMuted: false,
-          serverMuted: false,
-          volume: 100,
-        },
-      ]);
+      setMembers(runtimeReady.members.map(toRoomMember));
       setMessages([]);
       setAppState('channel');
-    } catch {
+    } catch (error) {
+      appendRuntimeLog(
+        'error',
+        'create-room',
+        error instanceof Error ? error.message : '未知建房错误',
+      );
       setAppState('join');
-      setJoinError('邀请码生成失败，请稍后重试。');
+      setJoinError('房间启动失败。请复制诊断日志并反馈，或检查本机网络/防火墙。');
     }
   };
 
   const handleCodeComplete = async (code: string) => {
+    appendRuntimeLog('info', 'join-room', `开始解析邀请码: ${normalizeInviteCode(code)}`);
     try {
-      const resolvedJoin = await resolveJoinRoom(code, {
-        findRoomByInviteCode: (formattedInviteCode) =>
-          readRoomRegistry().find(
-            (room) => normalizeInviteCode(room.inviteCode) === normalizeInviteCode(formattedInviteCode),
-          ),
+      const resolvedJoin = await resolveJoinRoom(code, {});
+      appendRuntimeLog(
+        'info',
+        'join-room',
+        `邀请码解析成功，目标=${resolvedJoin.endpointHost}:${resolvedJoin.endpointPort}，路径=${resolvedJoin.networkPath}`,
+      );
+      const roomId = normalizeInviteCode(resolvedJoin.formattedInviteCode);
+      const runtimeRoomState = await getRemoteHostRuntimeRoomState({
+        ipv4: resolvedJoin.endpointHost,
+        port: resolvedJoin.endpointPort,
+        roomId,
       });
-      setInviteCode(resolvedJoin.room.inviteCode);
-      setRoomName(resolvedJoin.room.roomName);
+      const resolvedHostName = deriveHostDisplayName(runtimeRoomState);
+      const resolvedRoomName = deriveRoomName(runtimeRoomState);
+      setInviteCode(resolvedJoin.formattedInviteCode);
+      setRoomName(resolvedRoomName);
       setPendingJoin({
-        roomName: resolvedJoin.room.roomName,
-        hostName: resolvedJoin.room.hostName,
-        onlineCount: 1,
+        roomName: resolvedRoomName,
+        hostName: resolvedHostName,
+        onlineCount: runtimeRoomState.type === 'RoomState' ? runtimeRoomState.payload.members.length : 1,
         networkPath: resolvedJoin.networkPath,
         resolutionNotice: resolvedJoin.resolutionNotice,
+        roomId,
+        endpointHost: resolvedJoin.endpointHost,
+        endpointPort: resolvedJoin.endpointPort,
       });
       setJoinError('');
       setAppState('confirm');
     } catch (error) {
+      appendRuntimeLog(
+        'error',
+        'join-room',
+        error instanceof Error ? error.message : '未知入房错误',
+      );
       setJoinError(
         error instanceof JoinRoomResolutionError
           ? error.message
@@ -157,70 +369,101 @@ function App() {
     }
   };
 
-  const handleConfirmJoin = () => {
-    const hostName = pendingJoin?.hostName || 'Host';
-    setNetworkPath(pendingJoin?.networkPath ?? 'p2p');
-    setNetworkNotice(pendingJoin?.resolutionNotice ?? '');
-    setMembers([
-      {
-        id: 'host-runtime',
-        name: hostName,
-        isHost: true,
-        isSpeaking: false,
-        localMuted: false,
-        serverMuted: false,
-        volume: 100,
-      },
-      {
-        id: currentUserId,
-        name: currentUserName,
-        isHost: false,
-        isSpeaking: false,
-        localMuted: false,
-        serverMuted: false,
-        volume: 100,
-      },
-    ]);
+  const handleConfirmJoin = async () => {
+    if (!pendingJoin) {
+      return;
+    }
+
+    const accepted = await joinRemoteHostRuntimeSession({
+      ipv4: pendingJoin.endpointHost,
+      port: pendingJoin.endpointPort,
+      roomId: pendingJoin.roomId,
+      inviteCode,
+      currentSlot: getCurrentInviteExpirySlot(),
+      userId: currentUserId,
+      displayName: currentUserName,
+    });
+    setActiveRoomId(pendingJoin.roomId);
+    setActiveRemoteEndpoint({
+      host: pendingJoin.endpointHost,
+      port: pendingJoin.endpointPort,
+    });
+    setActiveRoomStartSequence(accepted.latestSequence);
+    setNetworkPath(pendingJoin.networkPath ?? 'p2p');
+    setNetworkNotice(pendingJoin.resolutionNotice ?? '');
+    setMembers(toRoomMembers(accepted.roomState));
     setMessages([]);
     setAppState('channel');
   };
 
+  const handleLeave = () => {
+    controlSessionRef.current?.stop();
+    controlSessionRef.current = null;
+    peerSessionsRef.current.forEach((session) => session.close());
+    peerSessionsRef.current.clear();
+    setActiveRoomId('');
+    setActiveRemoteEndpoint(null);
+    setMembers([]);
+    setMessages([]);
+    setInviteCode('');
+    setRoomName('');
+    setAppState('join');
+  };
+
   return (
-    <div className="h-screen w-screen flex overflow-hidden font-sans bg-[#1e1f22] text-[#f3f4f6]">
+    <div className="app">
+      <Toggles />
+
       {appState === 'join' && (
-        <div className="flex-1 flex justify-center items-center">
-          <div className="bg-[#313338] p-8 rounded-xl shadow-2xl w-[480px] flex flex-col items-center text-center">
-            <h2 className="text-2xl font-bold mb-2">加入语音频道</h2>
-            <p className="text-gray-400 text-sm mb-8">请输入 16 位邀请码</p>
-            <CodeInput onComplete={handleCodeComplete} />
-            {joinError && <p className="text-red-400 text-sm mt-4">{joinError}</p>}
-            <div className="w-full flex justify-between items-center mt-8">
-              <button 
-                onClick={handleCreateRoom} 
-                className="text-sm text-indigo-400 hover:underline"
-              >
-                创建新房间
-              </button>
+        <div className="screen-center">
+          <div className="card">
+            <div className="join">
+              <span className="label"><T zh="邀请码" en="Invite code" /></span>
+              <h2><T zh="加入一个直连房间" en="Join a direct room" /></h2>
+              <p className="sub">
+                <T zh="输入或粘贴房主给的 16 位邀请码。通话走点对点，不经任何服务器。"
+                   en="Paste or type a 16-character code from your host. The call connects peer-to-peer - nothing routes through a server." />
+              </p>
+              <CodeInput onComplete={handleCodeComplete} />
+              <div className="hint"><T zh="粘贴完整邀请码可一次填满所有分组。" en="Paste a full code to fill every group at once." /></div>
+              <div className="join-actions">
+                <button className="btn primary" onClick={handleCreateRoom}>
+                  <T zh="创建新房间" en="Host a room" />
+                </button>
+              </div>
+              {joinError && (
+                <div className="join-err">
+                  {joinError}
+                  <br />
+                  <a className="link" onClick={handleCopyDiagnostics}>
+                    <T zh="复制诊断日志" en="Copy diagnostics" />
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
       {appState === 'preparing' && (
-        <div className="flex-1 flex justify-center items-center">
-          <div className="bg-[#313338] p-8 rounded-xl shadow-2xl w-[480px] flex flex-col items-center text-center">
-            <div className="w-12 h-12 rounded-full border-4 border-indigo-400/30 border-t-indigo-400 animate-spin mb-6" />
-            <h2 className="text-2xl font-bold mb-2">正在准备房间</h2>
-            <p className="text-gray-400 text-sm">{prepareHint}</p>
+        <div className="screen-center">
+          <div className="card">
+            <div className="prep">
+              <div className="prep-spin" />
+              <h2><T zh="正在准备房间" en="Starting your room" /></h2>
+              <div className="now">{prepareHint}</div>
+              <div className="progress"><i /></div>
+            </div>
           </div>
         </div>
       )}
 
       {appState === 'channel' && (
-        <>
+        <div className="ch">
           <Sidebar
             roomName={roomName}
             inviteCode={inviteCode}
+            currentUserId={currentUserId}
             currentUserName={currentUserName}
             members={members}
             isCurrentUserHost={currentUserIsHost}
@@ -236,6 +479,7 @@ function App() {
           />
           <MainArea
             onOpenSettings={() => setIsSettingsOpen(true)}
+            onLeave={handleLeave}
             currentUserName={currentUserName}
             messages={messages}
             networkPath={networkPath}
@@ -251,10 +495,10 @@ function App() {
               setMessages((prev) => [...prev, newMessage]);
             }}
           />
-        </>
+        </div>
       )}
 
-      <ConfirmJoinModal 
+      <ConfirmJoinModal
         isOpen={appState === 'confirm'}
         roomName={pendingJoin?.roomName || roomName}
         onlineCount={pendingJoin?.onlineCount || 1}
@@ -265,11 +509,21 @@ function App() {
         onConfirm={handleConfirmJoin}
       />
 
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <LangProvider>
+        <AppShell />
+      </LangProvider>
+    </ThemeProvider>
   );
 }
 

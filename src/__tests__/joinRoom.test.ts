@@ -38,23 +38,25 @@ describe('joinRoom', () => {
     expect(result.resolutionNotice).toBe('房主直连入口不可达，已回退到中转模式。');
   });
 
-  it('returns room not found before opening confirm modal', async () => {
-    await expect(
-      resolveJoinRoom('AB12-CD34-EF56-GH78', {
-        findRoomByInviteCode: () => undefined,
-        prettifyInviteCodeImpl: vi.fn().mockResolvedValue('AB12-CD34-EF56-GH78'),
-        parseInviteCodeImpl: vi.fn().mockResolvedValue({
-          endpointScope: 'private-lan-ipv4',
-          joinMode: 'direct-host',
-          ipv4: '127.0.0.1',
-          port: 7788,
-          expirySlot: 500,
-        }),
-        probeRoomEndpointImpl: vi.fn(),
+  it('uses parsed endpoint metadata when local room registry is unavailable', async () => {
+    const result = await resolveJoinRoom('AB12-CD34-EF56-GH78', {
+      findRoomByInviteCode: () => undefined,
+      prettifyInviteCodeImpl: vi.fn().mockResolvedValue('AB12-CD34-EF56-GH78'),
+      parseInviteCodeImpl: vi.fn().mockResolvedValue({
+        endpointScope: 'private-lan-ipv4',
+        joinMode: 'direct-host',
+        ipv4: '127.0.0.1',
+        port: 7788,
+        expirySlot: 500,
       }),
-    ).rejects.toMatchObject({
-      code: 'room-not-found',
+      probeRoomEndpointImpl: vi
+        .fn()
+        .mockResolvedValue({ reachable: true, failureKind: null, elapsedMs: 20 }),
     });
+
+    expect(result.room).toBeNull();
+    expect(result.endpointHost).toBe('127.0.0.1');
+    expect(result.endpointPort).toBe(7788);
   });
 
   it('returns invalid invite when parsing fails', async () => {

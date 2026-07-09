@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { INVITE_CODE_GROUPS, INVITE_CODE_GROUP_SIZE, normalizeInviteCode } from '../lib/inviteCode';
+import { T } from '../providers';
 
 interface CodeInputProps {
   onComplete: (code: string) => void;
@@ -63,7 +64,7 @@ const CodeInput: React.FC<CodeInputProps> = ({ onComplete }) => {
   };
 
   return (
-    <div className="flex space-x-3" data-testid="code-input-container">
+    <div className="codefield" data-testid="code-input-container">
       {code.map((char, index) => (
         <input
           key={index}
@@ -76,11 +77,12 @@ const CodeInput: React.FC<CodeInputProps> = ({ onComplete }) => {
           onChange={(e) => handleChange(e, index)}
           onKeyDown={(e) => handleKeyDown(e, index)}
           onPaste={handlePaste}
-          className="w-20 h-16 text-center text-2xl font-bold bg-[#1e1f22] border-2 border-[#4b5563] rounded-lg text-white uppercase tracking-[0.2em] transition-all focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+          aria-label={`Invite code group ${index + 1}`}
         />
       ))}
     </div>
   );
 };
 
+export const codeFieldHint = () => <T zh="粘贴完整邀请码可一次填满所有分组。" en="Paste a full code to fill every group at once." />;
 export default CodeInput;

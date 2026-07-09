@@ -1,0 +1,96 @@
+import { invoke } from '@tauri-apps/api/core';
+import type { ControlRuntimeMessage, MemberSnapshot, RoomBroadcastMessage, RoomRuntimeEvent, WebRtcSignalType } from '../types/runtimeSession';
+
+export interface HostRuntimeReady {
+  roomId: string;
+  inviteCode: string;
+  listenHost: string;
+  listenPort: number;
+  members: MemberSnapshot[];
+  latestSequence: number;
+}
+
+export interface JoinRuntimeAccepted {
+  roomId: string;
+  joinedMember: MemberSnapshot;
+  roomState: RoomBroadcastMessage;
+  latestSequence: number;
+}
+
+export interface SignalRelayAccepted {
+  sequence: number;
+  targetMemberId?: string | null;
+  message: ControlRuntimeMessage;
+}
+
+export const startHostRuntimeSession = (payload: {
+  roomId: string;
+  hostId: string;
+  hostName: string;
+  inviteCode: string;
+  currentSlot: number;
+  listenHost: string;
+  listenPort: number;
+}) => invoke<HostRuntimeReady>('start_host_runtime_session', payload);
+
+export const joinHostRuntimeSession = (payload: {
+  roomId: string;
+  inviteCode: string;
+  currentSlot: number;
+  userId: string;
+  displayName: string;
+}) => invoke<JoinRuntimeAccepted>('join_host_runtime_session', payload);
+
+export const joinRemoteHostRuntimeSession = (payload: {
+  ipv4: string;
+  port: number;
+  roomId: string;
+  inviteCode: string;
+  currentSlot: number;
+  userId: string;
+  displayName: string;
+}) => invoke<JoinRuntimeAccepted>('join_remote_host_runtime_session', payload);
+
+export const getHostRuntimeRoomState = (roomId: string) =>
+  invoke<RoomBroadcastMessage | null>('get_host_runtime_room_state', { roomId });
+
+export const getRemoteHostRuntimeRoomState = (payload: {
+  ipv4: string;
+  port: number;
+  roomId: string;
+}) => invoke<RoomBroadcastMessage>('get_remote_host_runtime_room_state', payload);
+
+export const getHostRuntimeRoomEvents = (payload: {
+  roomId: string;
+  subscriberMemberId: string;
+  lastSequence: number;
+}) => invoke<RoomRuntimeEvent[] | null>('get_host_runtime_room_events', payload);
+
+export const getRemoteHostRuntimeRoomEvents = (payload: {
+  ipv4: string;
+  port: number;
+  roomId: string;
+  subscriberMemberId: string;
+  lastSequence: number;
+}) => invoke<RoomRuntimeEvent[]>('get_remote_host_runtime_room_events', payload);
+
+export const relayHostRuntimeSignal = (payload: {
+  roomId: string;
+  from: string;
+  target: string;
+  signalType: WebRtcSignalType;
+  payload: string;
+}) => invoke<SignalRelayAccepted>('relay_host_runtime_signal', payload);
+
+export const relayRemoteRuntimeSignal = (payload: {
+  ipv4: string;
+  port: number;
+  roomId: string;
+  from: string;
+  target: string;
+  signalType: WebRtcSignalType;
+  payload: string;
+}) => invoke<SignalRelayAccepted>('relay_remote_runtime_signal', payload);
+
+export const getHostRuntimeReady = (roomId: string) =>
+  invoke<HostRuntimeReady | null>('get_host_runtime_ready', { roomId });
