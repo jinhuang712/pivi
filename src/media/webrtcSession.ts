@@ -1,7 +1,16 @@
 import type { WebRtcSignalMessage, WebRtcSignalType } from '../types/runtimeSession';
 
+type DataChannelLike = {
+  readyState: string;
+  label: string;
+  onopen: any;
+  onmessage: any;
+  send: (data: string) => void;
+  close: () => void;
+};
+
 type PeerConnectionLike = {
-  createDataChannel: (label: string) => unknown;
+  createDataChannel: (label: string) => DataChannelLike;
   createOffer: () => Promise<RTCSessionDescriptionInit>;
   createAnswer: () => Promise<RTCSessionDescriptionInit>;
   setLocalDescription: (description: RTCSessionDescriptionInit) => Promise<void>;
@@ -11,6 +20,7 @@ type PeerConnectionLike = {
   close: () => void;
   onicecandidate: any;
   ontrack: any;
+  ondatachannel: any;
 };
 
 interface CreateWebRtcSessionOptions {
@@ -20,6 +30,7 @@ interface CreateWebRtcSessionOptions {
   createPeerConnection?: () => PeerConnectionLike;
   localStream?: MediaStream;
   onRemoteStream?: (stream: MediaStream) => void;
+  onChatMessage?: (frame: string) => void;
   sendSignal: (payload: {
     roomId: string;
     from: string;
@@ -42,6 +53,7 @@ export const createWebRtcSession = ({
   createPeerConnection = defaultPeerConnectionFactory,
   localStream,
   onRemoteStream,
+  onChatMessage,
   sendSignal,
   onSignalApplied,
 }: CreateWebRtcSessionOptions) => {
@@ -57,6 +69,22 @@ export const createWebRtcSession = ({
     };
   }
 
+  let chatChannel: DataChannelLike | null = null;
+  const wireChatChannel = (channel: DataChannelLike) => {
+    chatChannel = channel;
+    channel.onmessage = (event: { data?: string }) => {
+      if (event?.data) {
+        onChatMessage?.(event.data);
+      }
+    };
+  };
+  peerConnection.ondatachannel = (event: unknown) => {
+    const channel = (event as { channel?: DataChannelLike })?.channel;
+    if (channel) {
+      wireChatChannel(channel);
+    }
+  };
+
   const prepareNegotiation = () => {
     if (negotiationPrepared) {
       return;
@@ -68,7 +96,6 @@ export const createWebRtcSession = ({
         peerConnection.addTrack(track, localStream);
       });
     }
-    peerConnection.createDataChannel(`pivi-control-${peerId}`);
     peerConnection.onicecandidate = (event: unknown) => {
       const candidate = typeof event === 'object' && event !== null && 'candidate' in event ? event.candidate : null;
       if (!candidate) {
@@ -97,6 +124,7 @@ export const createWebRtcSession = ({
 
   const startOffer = async () => {
     prepareNegotiation();
+    wireChatChannel(peerConnection.createDataChannel('pivi-chat'));
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
     await sendLocalDescription('Offer', offer);
@@ -129,13 +157,23 @@ export const createWebRtcSession = ({
     }
   };
 
+  const sendChat = (frame: string): boolean => {
+    if (chatChannel && chatChannel.readyState === 'open') {
+      chatChannel.send(frame);
+      return true;
+    }
+    return false;
+  };
+
   const close = () => {
+    chatChannel?.close();
     peerConnection.close();
   };
 
   return {
     startOffer,
     handleSignal,
+    sendChat,
     close,
   };
 };

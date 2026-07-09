@@ -4,7 +4,14 @@ import type { WebRtcSignalMessage } from '../types/runtimeSession';
 
 const createFakePeerConnection = () => {
   const fake = {
-    createDataChannel: vi.fn(),
+    createDataChannel: vi.fn(() => ({
+      readyState: 'open',
+      label: 'pivi-chat',
+      onopen: null,
+      onmessage: null,
+      send: vi.fn(),
+      close: vi.fn(),
+    })),
     createOffer: vi.fn(async (): Promise<RTCSessionDescriptionInit> => ({ type: 'offer', sdp: 'offer-sdp' })),
     createAnswer: vi.fn(async (): Promise<RTCSessionDescriptionInit> => ({ type: 'answer', sdp: 'answer-sdp' })),
     setLocalDescription: vi.fn(async () => {}),
@@ -14,6 +21,7 @@ const createFakePeerConnection = () => {
     close: vi.fn(),
     onicecandidate: null as ((event: unknown) => void) | null,
     ontrack: null as ((event: unknown) => void) | null,
+    ondatachannel: null as ((event: unknown) => void) | null,
   };
 
   return fake;
@@ -91,7 +99,7 @@ describe('createWebRtcSession', () => {
     const audioTrack = { kind: 'audio', id: 't1' } as unknown as MediaStreamTrack;
     const localStream = { getTracks: () => [audioTrack] } as unknown as MediaStream;
     const pc: any = {
-      createDataChannel: vi.fn(),
+      createDataChannel: vi.fn(() => ({ readyState: 'open', label: 'pivi-chat', onopen: null, onmessage: null, send: vi.fn(), close: vi.fn() })),
       createOffer: vi.fn(async () => ({ type: 'offer', sdp: 'offer-sdp' })),
       createAnswer: vi.fn(async () => ({ type: 'answer', sdp: 'answer-sdp' })),
       setLocalDescription: vi.fn(async () => {}),
@@ -101,6 +109,7 @@ describe('createWebRtcSession', () => {
       close: vi.fn(),
       onicecandidate: null,
       ontrack: null,
+      ondatachannel: null,
     };
     const onRemoteStream = vi.fn();
     const session = createWebRtcSession({
@@ -120,5 +129,39 @@ describe('createWebRtcSession', () => {
     const remoteStream = { id: 'remote' } as unknown as MediaStream;
     pc.ontrack({ streams: [remoteStream] });
     expect(onRemoteStream).toHaveBeenCalledWith(remoteStream);
+  });
+
+  it('sends and receives chat frames over the data channel', async () => {
+    const chatChannel: any = {
+      readyState: 'open',
+      onopen: null,
+      onmessage: null,
+      send: vi.fn(),
+      close: vi.fn(),
+      label: 'pivi-chat',
+    };
+    const pc = createFakePeerConnection();
+    (pc as any).createDataChannel = vi.fn(() => chatChannel);
+
+    const onChatMessage = vi.fn();
+    const session = createWebRtcSession({
+      selfId: 'host-1',
+      peerId: 'user-2',
+      roomId: 'room-a',
+      createPeerConnection: () => pc,
+      onChatMessage,
+      sendSignal: vi.fn(async () => {}),
+    });
+
+    await session.startOffer();
+    expect((pc as any).createDataChannel).toHaveBeenCalled();
+
+    // incoming frame from peer
+    chatChannel.onmessage({ data: 'incoming-frame' });
+    expect(onChatMessage).toHaveBeenCalledWith('incoming-frame');
+
+    // outgoing frame
+    expect(session.sendChat('outgoing-frame')).toBe(true);
+    expect(chatChannel.send).toHaveBeenCalledWith('outgoing-frame');
   });
 });
