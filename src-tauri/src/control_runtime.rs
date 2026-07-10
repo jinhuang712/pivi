@@ -224,7 +224,11 @@ pub fn spawn_control_runtime_listener(
                 let _ = thread::Builder::new()
                     .name("pivi-control-runtime-client".to_string())
                     .spawn(move || {
-                        let _ = handle_runtime_stream(stream, &manager);
+                        if crate::ws_server::is_websocket_upgrade(&stream) {
+                            let _ = handle_websocket_event_stream(stream, &manager);
+                        } else {
+                            let _ = handle_runtime_stream(stream, &manager);
+                        }
                     });
             }
         })
@@ -469,12 +473,73 @@ fn handle_runtime_stream(mut stream: TcpStream, manager: &HostRuntimeSessionMana
     Ok(())
 }
 
+/// Persistent WebSocket event channel (C1). After the handshake the client
+/// sends one `Subscribe` message; the server then long-polls the in-process
+/// manager and pushes every new `RoomRuntimeEvent` for that member as a WS text
+/// frame. This replaces the 1s client polling for events; signalling/join/host
+/// management still use the line-delimited JSON path.
+fn handle_websocket_event_stream(
+    stream: TcpStream,
+    manager: &HostRuntimeSessionManager,
+) -> std::io::Result<()> {
+    use serde::Deserialize;
+    #[derive(Deserialize)]
+    struct SubscribeRequest {
+        #[serde(rename = "type")]
+        #[allow(dead_code)]
+        kind: String,
+        #[serde(rename = "roomId")]
+        room_id: String,
+        #[serde(rename = "memberId")]
+        member_id: String,
+        #[serde(rename = "lastSequence")]
+        last_sequence: u64,
+    }
+
+    let map_err = |err: String| std::io::Error::new(std::io::ErrorKind::Other, err);
+    let mut ws = crate::ws_server::accept_websocket(stream)?;
+
+    let subscribe_text = ws
+        .read()
+        .map_err(|err| map_err(format!("{err}")))?
+        .into_text()
+        .map_err(|err| map_err(format!("{err}")))?;
+    let subscribe: SubscribeRequest =
+        serde_json::from_str(&subscribe_text).map_err(|err| map_err(format!("{err}")))?;
+
+    let mut last_sequence = subscribe.last_sequence;
+    let mut ticks = 0u32;
+    loop {
+        if let Some(events) =
+            manager.get_events_since_for_member(&subscribe.room_id, Some(&subscribe.member_id), last_sequence)
+        {
+            for event in events {
+                if event.sequence > last_sequence {
+                    last_sequence = event.sequence;
+                }
+                let serialized = serde_json::to_string(&event).map_err(|err| map_err(format!("{err}")))?;
+                if ws.send(tungstenite::Message::Text(serialized)).is_err() {
+                    return Ok(()); // client went away
+                }
+            }
+        }
+        ticks = ticks.wrapping_add(1);
+        if ticks % 50 == 0 {
+            // heartbeat ping reaps dead clients even when no events are flowing
+            if ws.send(tungstenite::Message::Ping(vec![])).is_err() {
+                return Ok(());
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::net::Ipv4Addr;
 
-    use crate::host_runtime_session::{ControlRuntimeMessage, HostRuntimeSessionManager};
+    use crate::host_runtime_session::{ControlRuntimeMessage, HostRuntimeSessionManager, RoomRuntimeEvent};
     use crate::invite_code::{encode_invite_code, InviteCodePayload, InviteEndpointScope, InviteJoinMode};
 
     fn build_invite_code(port: u16) -> String {
@@ -728,5 +793,46 @@ mod tests {
         }
         assert!(manager.is_host("room-a", "user-2"));
         assert!(!manager.is_host("room-a", "host-1"));
+    }
+
+    #[test]
+    fn websocket_event_channel_should_push_new_events_to_subscriber() {
+        use tungstenite::{connect, protocol::Message};
+        let manager = HostRuntimeSessionManager::default();
+        let invite_code = build_invite_code(7788);
+        let host_ip = Ipv4Addr::new(127, 0, 0, 1);
+        let listener = TcpListener::bind((host_ip, 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        manager
+            .start_host_session("room-a", "host-1", "HuangJin", &invite_code, 0, "127.0.0.1", port, host_ip)
+            .unwrap();
+        manager
+            .join_host_session("room-a", &invite_code, 0, "user-2", "Player B")
+            .unwrap();
+        spawn_control_runtime_listener(listener, manager.clone()).unwrap();
+
+        // Subscribe from the latest sequence (3 = after the join broadcasts).
+        let (mut client, _response) = connect(format!("ws://127.0.0.1:{}/", port)).unwrap();
+        client
+            .send(Message::Text(
+                r#"{"type":"Subscribe","roomId":"room-a","memberId":"user-2","lastSequence":3}"#.to_string(),
+            ))
+            .unwrap();
+
+        // Emit a targeted event for user-2 shortly after subscribing.
+        let manager_clone = manager.clone();
+        let emitter = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(300));
+            manager_clone
+                .relay_webrtc_signal("room-a", "host-1", "user-2", WebRtcSignalType::Offer, "offer-sdp")
+                .unwrap();
+        });
+
+        let pushed = client.read().unwrap().into_text().unwrap();
+        let event: RoomRuntimeEvent = serde_json::from_str(&pushed).unwrap();
+        assert_eq!(event.sequence, 4);
+        assert!(matches!(event.message, ControlRuntimeMessage::WebRtcSignal(_)));
+
+        emitter.join().unwrap();
     }
 }
