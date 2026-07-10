@@ -14,7 +14,7 @@ import {
   prepareRoomInvite,
 } from "./lib/inviteCode";
 import { JoinRoomResolutionError, resolveJoinRoom } from "./lib/joinRoom";
-import { createControlSession } from "./lib/controlSession";
+import { createControlSession, createWebSocketControlSession } from "./lib/controlSession";
 import { createWebRtcSession } from "./media/webrtcSession";
 import { useLocalAudio } from "./media/useLocalAudio";
 import { useHotkeys } from "./media/useHotkeys";
@@ -31,7 +31,6 @@ import {
   banRemoteRuntimeMember,
   getHostRuntimeRoomEvents,
   getHostRuntimeRoomState,
-  getRemoteHostRuntimeRoomEvents,
   getRemoteHostRuntimeRoomState,
   joinRemoteHostRuntimeSession,
   kickHostRuntimeMember,
@@ -128,7 +127,7 @@ function AppShell() {
   const [remoteScreen, setRemoteScreen] = useState<MediaStream | null>(null);
 
   const currentUserIsHost = members.find((m) => m.id === currentUserId)?.isHost ?? false;
-  const controlSessionRef = useRef<ReturnType<typeof createControlSession> | null>(null);
+  const controlSessionRef = useRef<{ start: () => void; stop: () => void } | null>(null);
   const peerSessionsRef = useRef(new Map<string, ReturnType<typeof createWebRtcSession>>());
   const activeRoomIdRef = useRef('');
   const activeRemoteEndpointRef = useRef<{ host: string; port: number } | null>(null);
@@ -473,31 +472,36 @@ function AppShell() {
     }
 
     controlSessionRef.current?.stop();
-    controlSessionRef.current = createControlSession({
-      initialSequence: activeRoomStartSequence,
-      getEvents: ({ lastSequence }) =>
-        activeRemoteEndpoint
-          ? getRemoteHostRuntimeRoomEvents({
-              ipv4: activeRemoteEndpoint.host,
-              port: activeRemoteEndpoint.port,
-              roomId: activeRoomId,
-              subscriberMemberId: currentUserId,
-              lastSequence,
-            })
-          : getHostRuntimeRoomEvents({
-              roomId: activeRoomId,
-              subscriberMemberId: currentUserId,
-              lastSequence,
-            }),
-      onMessage: applyRuntimeEvent,
-      onError: (error) => {
-        appendRuntimeLog(
-          'warn',
-          'runtime-poll',
-          error instanceof Error ? error.message : '房间状态轮询失败',
-        );
-      },
-    });
+    if (activeRemoteEndpoint) {
+      // Joiner: persistent WebSocket push channel (replaces 1s TCP polling).
+      controlSessionRef.current = createWebSocketControlSession({
+        url: `ws://${activeRemoteEndpoint.host}:${activeRemoteEndpoint.port}/`,
+        roomId: activeRoomId,
+        memberId: currentUserId,
+        initialSequence: activeRoomStartSequence,
+        onMessage: applyRuntimeEvent,
+        onError: (error) => appendRuntimeLog('warn', 'runtime-ws', error),
+      });
+    } else {
+      // Host: in-process polling (cheap, no network).
+      controlSessionRef.current = createControlSession({
+        initialSequence: activeRoomStartSequence,
+        getEvents: ({ lastSequence }) =>
+          getHostRuntimeRoomEvents({
+            roomId: activeRoomId,
+            subscriberMemberId: currentUserId,
+            lastSequence,
+          }),
+        onMessage: applyRuntimeEvent,
+        onError: (error) => {
+          appendRuntimeLog(
+            'warn',
+            'runtime-poll',
+            error instanceof Error ? error.message : '房间状态轮询失败',
+          );
+        },
+      });
+    }
     controlSessionRef.current.start();
 
     return () => {
