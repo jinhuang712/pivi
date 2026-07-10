@@ -223,6 +223,7 @@ vi.mock('../media/webrtcSession', () => ({
     sendChat: vi.fn(() => true),
     sendRaw: vi.fn(() => true),
     addTrack: vi.fn(async () => {}),
+    restartIce: vi.fn(async () => {}),
     close: vi.fn(),
   })),
 }));

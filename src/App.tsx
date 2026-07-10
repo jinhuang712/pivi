@@ -22,6 +22,7 @@ import { useScreenShare } from "./media/useScreenShare";
 import type { ShareQualityPreset } from "./media/screenShare";
 import { IncomingFileAssembler, canSendImage, splitIntoChunks, type FileMetaFrame } from "./media/fileTransfer";
 import { SpeakingMonitor } from "./media/speakingDetector";
+import { RelayFallbackEngine, type IceConnectionStateLike } from "./media/relayFallback";
 import { AudioControlEngine } from "./media/audioControl";
 import { loadHotkeys } from "./lib/hotkeySettings";
 import { appendRuntimeLog, buildRuntimeDiagnosticsText } from "./lib/runtimeLog";
@@ -138,8 +139,21 @@ function AppShell() {
   membersRef.current = members;
   const speakingMonitorsRef = useRef(new Map<string, SpeakingMonitor>());
   const selfMonitorRef = useRef<SpeakingMonitor | null>(null);
+  // Per-peer relay-fallback state. The engine decides stay_p2p / switch_to_relay
+  // / close_session from ICE state; we retry ICE once before declaring relay.
+  const relayEnginesRef = useRef(new Map<string, RelayFallbackEngine>());
+  const relayRetriedPeersRef = useRef(new Set<string>());
+  const relayActivePeersRef = useRef(new Set<string>());
   const setMemberSpeaking = (memberId: string, speaking: boolean) => {
     setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, isSpeaking: speaking } : m)));
+  };
+  const refreshNetworkPath = () => {
+    if (relayActivePeersRef.current.size > 0) {
+      setNetworkPath('relay');
+    } else {
+      setNetworkPath('p2p');
+      setNetworkNotice('');
+    }
   };
 
   useEffect(() => {
@@ -264,6 +278,62 @@ function AppShell() {
     }
   };
 
+  const cleanupPeerSession = (peerId: string) => {
+    audioEngineRef.current?.unbindRemoteStream(peerId);
+    speakingMonitorsRef.current.get(peerId)?.stop();
+    speakingMonitorsRef.current.delete(peerId);
+    peerSessionsRef.current.get(peerId)?.close();
+    peerSessionsRef.current.delete(peerId);
+    relayEnginesRef.current.delete(peerId);
+    relayRetriedPeersRef.current.delete(peerId);
+    if (relayActivePeersRef.current.delete(peerId)) {
+      refreshNetworkPath();
+    }
+    setMembers((prev) => prev.filter((m) => m.id !== peerId));
+  };
+
+  // Runtime relay fallback: feed each peer's ICE state through the engine. On
+  // failure we retry ICE once (per the NAT strategy: "ICE 协商超时：自动切换
+  // 中转并重试一次"); if that also fails we declare relay mode and surface it.
+  const handleIceState = (peerId: string, state: string, checkingElapsedMs: number) => {
+    let engine = relayEnginesRef.current.get(peerId);
+    if (!engine) {
+      engine = new RelayFallbackEngine();
+      relayEnginesRef.current.set(peerId, engine);
+    }
+
+    // A (re)established link clears any relay state for this peer.
+    if (state === 'connected' || state === 'completed') {
+      engine.clearPeer(peerId);
+      relayRetriedPeersRef.current.delete(peerId);
+      if (relayActivePeersRef.current.delete(peerId)) {
+        refreshNetworkPath();
+      }
+      return;
+    }
+
+    const decision = engine.processIceState({
+      peerId,
+      iceState: state as IceConnectionStateLike,
+      checkingElapsedMs,
+    });
+    if (decision === 'switch_to_relay') {
+      if (!relayRetriedPeersRef.current.has(peerId)) {
+        relayRetriedPeersRef.current.add(peerId);
+        appendRuntimeLog('warn', 'relay', `与成员 ${peerId} 的直连建立失败，尝试 ICE 重启`);
+        void peerSessionsRef.current.get(peerId)?.restartIce();
+        return;
+      }
+      relayActivePeersRef.current.add(peerId);
+      setNetworkPath('relay');
+      setNetworkNotice('通话中直连不可达，已切换中转模式。');
+      appendRuntimeLog('warn', 'relay', `与成员 ${peerId} ICE 重启后仍失败，已切换中转模式`);
+    } else if (decision === 'close_session') {
+      appendRuntimeLog('info', 'relay', `与成员 ${peerId} 的连接已关闭`);
+      cleanupPeerSession(peerId);
+    }
+  };
+
   const ensurePeerSession = (peerId: string) => {
     const existing = peerSessionsRef.current.get(peerId);
     if (existing) {
@@ -295,6 +365,9 @@ function AppShell() {
       },
       onSignalApplied: (signalType) => {
         appendRuntimeLog('info', 'webrtc-session', `已处理 ${signalType} 信令，对端=${peerId}`);
+      },
+      onIceStateChange: (state, checkingElapsedMs) => {
+        handleIceState(peerId, state, checkingElapsedMs);
       },
     });
     peerSessionsRef.current.set(peerId, session);
@@ -330,10 +403,14 @@ function AppShell() {
           audioEngineRef.current?.unbindRemoteStream(peerId);
           speakingMonitorsRef.current.get(peerId)?.stop();
           speakingMonitorsRef.current.delete(peerId);
+          relayEnginesRef.current.delete(peerId);
+          relayRetriedPeersRef.current.delete(peerId);
+          relayActivePeersRef.current.delete(peerId);
           session.close();
           peerSessionsRef.current.delete(peerId);
         }
       });
+      refreshNetworkPath();
       return;
     }
 
@@ -758,6 +835,9 @@ function AppShell() {
     });
     peerSessionsRef.current.clear();
     speakingMonitorsRef.current.clear();
+    relayEnginesRef.current.clear();
+    relayRetriedPeersRef.current.clear();
+    relayActivePeersRef.current.clear();
     selfMonitorRef.current?.stop();
     selfMonitorRef.current = null;
     setActiveRoomId('');

@@ -22,6 +22,8 @@ const createFakePeerConnection = () => {
     onicecandidate: null as ((event: unknown) => void) | null,
     ontrack: null as ((event: unknown) => void) | null,
     ondatachannel: null as ((event: unknown) => void) | null,
+    iceConnectionState: 'new',
+    oniceconnectionstatechange: null as (() => void) | null,
   };
 
   return fake;
@@ -248,5 +250,82 @@ describe('createWebRtcSession', () => {
 
     expect(session.sendRaw(chunk)).toBe(true);
     expect(chatChannel.send).toHaveBeenCalledWith(chunk);
+  });
+
+  it('surfaces ICE connection state transitions', async () => {
+    const pc = createFakePeerConnection();
+    const onIceStateChange = vi.fn();
+    const session = createWebRtcSession({
+      selfId: 'h',
+      peerId: 'u',
+      roomId: 'r',
+      createPeerConnection: () => pc,
+      onIceStateChange,
+      iceCheckingTimeoutMs: 100_000,
+      sendSignal: vi.fn(async () => {}),
+    });
+    await session.startOffer();
+
+    (pc as { iceConnectionState: string }).iceConnectionState = 'checking';
+    (pc as { oniceconnectionstatechange: () => void }).oniceconnectionstatechange();
+    (pc as { iceConnectionState: string }).iceConnectionState = 'failed';
+    (pc as { oniceconnectionstatechange: () => void }).oniceconnectionstatechange();
+
+    const states = onIceStateChange.mock.calls.map((call) => call[0]);
+    expect(states).toContain('checking');
+    expect(states).toContain('failed');
+    session.close();
+  });
+
+  it('reports a timed-out checking event after the configured timeout', async () => {
+    vi.useFakeTimers();
+    const pc = createFakePeerConnection();
+    const onIceStateChange = vi.fn();
+    const session = createWebRtcSession({
+      selfId: 'h',
+      peerId: 'u',
+      roomId: 'r',
+      createPeerConnection: () => pc,
+      onIceStateChange,
+      iceCheckingTimeoutMs: 1000,
+      sendSignal: vi.fn(async () => {}),
+    });
+    await session.startOffer();
+
+    (pc as { iceConnectionState: string }).iceConnectionState = 'checking';
+    (pc as { oniceconnectionstatechange: () => void }).oniceconnectionstatechange();
+
+    vi.advanceTimersByTime(1001);
+
+    const timedOutElapsed = onIceStateChange.mock.calls
+      .filter((call) => call[0] === 'checking')
+      .map((call) => call[1] as number)
+      .find((elapsed) => elapsed >= 1000);
+    expect(timedOutElapsed).toBeGreaterThanOrEqual(1000);
+
+    session.close();
+    vi.useRealTimers();
+  });
+
+  it('restartIce triggers an offer with iceRestart and re-sends it', async () => {
+    const pc = createFakePeerConnection();
+    const sendSignal = vi.fn(async () => {});
+    const session = createWebRtcSession({
+      selfId: 'h',
+      peerId: 'u',
+      roomId: 'r',
+      createPeerConnection: () => pc,
+      sendSignal,
+    });
+    await session.startOffer();
+    (pc.createOffer as ReturnType<typeof vi.fn>).mockClear();
+    sendSignal.mockClear();
+
+    await session.restartIce();
+
+    expect(pc.createOffer).toHaveBeenCalledWith({ iceRestart: true });
+    expect(sendSignal).toHaveBeenCalled();
+    const calls = sendSignal.mock.calls as unknown as { signalType: string }[][];
+    expect(calls[calls.length - 1]?.[0]?.signalType).toBe('Offer');
   });
 });

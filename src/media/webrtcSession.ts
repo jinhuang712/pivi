@@ -13,7 +13,7 @@ type DataChannelLike = {
 
 type PeerConnectionLike = {
   createDataChannel: (label: string) => DataChannelLike;
-  createOffer: () => Promise<RTCSessionDescriptionInit>;
+  createOffer: (options?: RTCOfferOptions) => Promise<RTCSessionDescriptionInit>;
   createAnswer: () => Promise<RTCSessionDescriptionInit>;
   setLocalDescription: (description: RTCSessionDescriptionInit) => Promise<void>;
   setRemoteDescription: (description: RTCSessionDescriptionInit) => Promise<void>;
@@ -23,6 +23,8 @@ type PeerConnectionLike = {
   onicecandidate: any;
   ontrack: any;
   ondatachannel: any;
+  iceConnectionState: string;
+  oniceconnectionstatechange: any;
 };
 
 interface CreateWebRtcSessionOptions {
@@ -42,6 +44,12 @@ interface CreateWebRtcSessionOptions {
     payload: string;
   }) => Promise<void>;
   onSignalApplied?: (signalType: WebRtcSignalType) => void;
+  /** Reports RTCPeerConnection ICE connection state transitions, with the time
+   * spent in the "checking" state so a relay-fallback engine can time out. */
+  onIceStateChange?: (state: string, checkingElapsedMs: number) => void;
+  /** How long to stay in "checking" before reporting a timed-out checking
+   * event (which a relay-fallback engine treats as "switch to relay"). */
+  iceCheckingTimeoutMs?: number;
 }
 
 const defaultPeerConnectionFactory = () => new RTCPeerConnection();
@@ -60,9 +68,52 @@ export const createWebRtcSession = ({
   onDataMessage,
   sendSignal,
   onSignalApplied,
+  onIceStateChange,
+  iceCheckingTimeoutMs = 8_000,
 }: CreateWebRtcSessionOptions) => {
   const peerConnection = createPeerConnection();
   let negotiationPrepared = false;
+
+  // ICE connection state tracking for the relay-fallback engine. We report
+  // every state transition; while in "checking" we also arm a timeout so the
+  // engine can decide to switch to relay if connectivity never establishes.
+  let checkingSince: number | null = null;
+  let checkingTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const reportIceState = (state: string) => {
+    const elapsed = checkingSince !== null ? Date.now() - checkingSince : 0;
+    onIceStateChange?.(state, elapsed);
+  };
+
+  const clearCheckingTimer = () => {
+    if (checkingTimer !== null) {
+      clearTimeout(checkingTimer);
+      checkingTimer = null;
+    }
+  };
+
+  peerConnection.oniceconnectionstatechange = () => {
+    const state = peerConnection.iceConnectionState;
+    if (state === 'checking') {
+      if (checkingSince === null) {
+        checkingSince = Date.now();
+      }
+      if (checkingTimer === null) {
+        checkingTimer = setTimeout(() => {
+          checkingTimer = null;
+          // If we are still negotiating after the timeout, report a timed-out
+          // "checking" so the engine can fall back to relay.
+          if (peerConnection.iceConnectionState === 'checking') {
+            reportIceState('checking');
+          }
+        }, iceCheckingTimeoutMs);
+      }
+    } else {
+      clearCheckingTimer();
+      checkingSince = null;
+    }
+    reportIceState(state);
+  };
 
   if (onRemoteStream || onRemoteScreen) {
     peerConnection.ontrack = (event: unknown) => {
@@ -185,7 +236,17 @@ export const createWebRtcSession = ({
     await sendLocalDescription('Offer', offer);
   };
 
+  // ICE restart: forces a fresh gathering/connectivity pass. Used by the
+  // relay-fallback flow as the single retry before declaring relay mode.
+  const restartIce = async () => {
+    const offer = await peerConnection.createOffer({ iceRestart: true });
+    await peerConnection.setLocalDescription(offer);
+    await sendLocalDescription('Offer', offer);
+  };
+
   const close = () => {
+    clearCheckingTimer();
+    checkingSince = null;
     chatChannel?.close();
     peerConnection.close();
   };
@@ -196,6 +257,7 @@ export const createWebRtcSession = ({
     sendChat,
     sendRaw,
     addTrack,
+    restartIce,
     close,
   };
 };
