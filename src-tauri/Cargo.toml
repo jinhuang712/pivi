@@ -28,6 +28,9 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 # of relying on a route to a public address (8.8.8.8), so room creation works
 # on a LAN with no internet route.
 if-addrs = "0.7"
+# WebSocket server for the control-plane event push channel (C1): a persistent
+# connection per joiner replaces the 1s TCP polling for room events.
+tungstenite = "0.24"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 portmapper = "0.15.0"
