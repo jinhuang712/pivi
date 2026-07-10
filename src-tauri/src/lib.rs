@@ -492,12 +492,72 @@ fn format_nat_mapping_protocol(value: nat_mapping::NatMappingProtocol) -> String
 }
 
 fn detect_preferred_local_ipv4() -> Option<Ipv4Addr> {
+    // Prefer the interface the default route uses (fast path when a route to a
+    // public address exists), then fall back to enumerating local interfaces so
+    // we still find a LAN address when fully offline (no default route).
+    if let Some(ipv4) = probe_route_local_ipv4(Ipv4Addr::new(8, 8, 8, 8), 80) {
+        return Some(ipv4);
+    }
+    enumerate_local_ipv4()
+}
+
+fn probe_route_local_ipv4(dest: Ipv4Addr, port: u16) -> Option<Ipv4Addr> {
     let socket = UdpSocket::bind(("0.0.0.0", 0)).ok()?;
-    socket.connect(("8.8.8.8", 80)).ok()?;
+    socket.connect((dest, port)).ok()?;
 
     match socket.local_addr().ok()?.ip() {
         std::net::IpAddr::V4(ipv4) if !ipv4.is_loopback() && !ipv4.is_unspecified() => Some(ipv4),
         _ => None,
+    }
+}
+
+/// Offline-capable fallback: enumerate host interfaces and return the first
+/// routable LAN IPv4 (skips loopback, unspecified, and 169.254 link-local).
+fn enumerate_local_ipv4() -> Option<Ipv4Addr> {
+    let interfaces = if_addrs::get_if_addrs().ok()?;
+    interfaces.into_iter().find_map(|iface| match iface.addr {
+        if_addrs::IfAddr::V4(v4) => {
+            let ip = v4.ip;
+            let o = ip.octets();
+            let is_link_local = o[0] == 169 && o[1] == 254;
+            if !ip.is_loopback() && !ip.is_unspecified() && !is_link_local {
+                Some(ip)
+            } else {
+                None
+            }
+        }
+        if_addrs::IfAddr::V6(_) => None,
+    })
+}
+
+#[cfg(test)]
+mod offline_ip_tests {
+    use super::*;
+
+    #[test]
+    fn enumerate_local_ipv4_should_skip_loopback_unspecified_and_link_local() {
+        // On a real dev/CI host this finds a routable LAN address; on a fully
+        // isolated host it may be None, so we only assert the filtering when a
+        // candidate is present.
+        if let Some(ipv4) = enumerate_local_ipv4() {
+            let o = ipv4.octets();
+            assert!(!ipv4.is_loopback(), "must not be loopback: {ipv4}");
+            assert!(!ipv4.is_unspecified(), "must not be unspecified: {ipv4}");
+            assert!(
+                o[0] != 169 || o[1] != 254,
+                "must not be link-local 169.254.x.x: {ipv4}"
+            );
+        }
+    }
+
+    #[test]
+    fn detect_preferred_local_ipv4_should_prefer_default_route_or_enumerate() {
+        // Either path must yield a usable LAN address on a connected host.
+        let detected = detect_preferred_local_ipv4();
+        if let Some(ipv4) = detected {
+            assert!(!ipv4.is_loopback());
+            assert!(!ipv4.is_unspecified());
+        }
     }
 }
 

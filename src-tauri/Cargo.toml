@@ -24,6 +24,10 @@ tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+# Offline-capable local IPv4 detection: enumerates network interfaces instead
+# of relying on a route to a public address (8.8.8.8), so room creation works
+# on a LAN with no internet route.
+if-addrs = "0.7"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 portmapper = "0.15.0"
